@@ -839,7 +839,7 @@
 
           {# ── Accounts / receivables ── #}
           {% if can_customer_aging or can_required_credit_limit or can_claims or can_open_payments or can_reconciliation %}
-          <div class="cp-nav-group{% if sidebar_active == 'customer_aging' or sidebar_active == 'required_credit_limit' or sidebar_active == 'claims' or sidebar_active == 'open_payments' or sidebar_active == 'reconciliation' %} open{% endif %}" data-group="reports-accounts">
+          <div class="cp-nav-group{% if sidebar_active == 'customer_aging' or sidebar_active == 'beverages_gst' or sidebar_active == 'required_credit_limit' or sidebar_active == 'claims' or sidebar_active == 'open_payments' or sidebar_active == 'reconciliation' %} open{% endif %}" data-group="reports-accounts">
             <button type="button" class="cp-nav-item cp-nav-group-btn" onclick="toggleNavGroup(this)" title="Accounts" aria-label="Toggle Accounts reports">
               <span class="cp-nav-group-lead"><i class="ic ic-landmark"></i>Accounts</span>
               <i class="ic ic-chevron-down cp-nav-group-chev"></i>
@@ -848,6 +848,9 @@
               {% if can_customer_aging %}
               <a class="cp-nav-item {% if sidebar_active == 'customer_aging' %}active{% endif %}" href="{% url 'realise:customer_aging' %}" title="Customer Aging">
                 <i class="ic ic-wallet"></i>Customer Aging
+              </a>
+              <a class="cp-nav-item {% if sidebar_active == 'beverages_gst' %}active{% endif %}" href="{% url 'realise:beverages_gst' %}" title="Beverages GST Data">
+                <i class="ic ic-receipt-text"></i>Beverages GST Data
               </a>
               {% endif %}
               {% if can_required_credit_limit %}

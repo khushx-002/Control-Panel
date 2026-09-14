@@ -159,6 +159,37 @@ def customer_aging_detail(request):
     })
 
 
+# Gated on can_customer_aging on purpose, not a new permission group: this page sits
+# inside Accounts directly under Customer Aging and is read by the same people, so a
+# separate group would only mean re-assigning every existing accounts user by hand.
+@permission_flag_required('can_customer_aging')
+def beverages_gst(request):
+    """Standalone tab: Beverages GST — taxable value ("without GST") beside the tax
+    itself ("GST") for a date range, grouped Sales Person -> Customer, with a sales-person
+    filter. Data via /realise/api/beverages-gst/."""
+    from datetime import date
+    today = date.today()
+    return render(request, 'realise/beverages_gst.html', {
+        'sidebar_active': 'beverages_gst',
+        'gst_today': today.isoformat(),
+        # First of the current month — the page opens on month-to-date.
+        'gst_month_start': today.replace(day=1).isoformat(),
+    })
+
+
+@permission_flag_required('can_customer_aging', json_response=True)
+@require_http_methods(['POST'])
+def api_beverages_gst_data(request):
+    """Beverages GST rows for a date range. Body: {start_date, end_date}."""
+    body = _parse_body(request)
+    start_date = body.get('start_date', '')
+    end_date = body.get('end_date', '')
+    if not start_date or not end_date:
+        return JsonResponse({'status': 'error', 'error': 'start_date and end_date required'},
+                            status=400)
+    return JsonResponse(services.get_beverages_gst(start_date, end_date))
+
+
 @permission_flag_required('can_customer_aging', json_response=True)
 @require_http_methods(['GET'])
 def api_customer_aging_beverages(request):

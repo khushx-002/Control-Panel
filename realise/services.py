@@ -6973,3 +6973,165 @@ def get_channel_actuals(start_date, end_date):
         ttl_for_range(start_date, end_date),
         lambda: _get_channel_actuals_uncached(start_date, end_date),
     )
+
+
+# ───────────────────── Beverages GST data (Accounts) ──────────────────────
+# One row per (sales person → customer) with the invoice value split into the
+# taxable value ("without GST") and the tax itself ("GST").
+#
+# Why the tax is SUMMED and never worked out as a percentage: the beverages book
+# carries several rates at once (5%, 18% and 40% all appear), so there is no single
+# rate to apply. SUM(INV1."VatSum") ties exactly to the invoice header's VatSum —
+# verified against SAP to 0.00 on a full month.
+#
+# The three WHERE conditions are the same ones every other Beverages report uses,
+# and they matter here:
+#   GroupCode <> 100   drops inter-company documents. Without it a month picked up
+#                      9 "Based On Inventory Transfers" invoices to JIVO WELLNESS
+#                      billing pallets and P.P. sheets at 18% - 4.3 lakh of
+#                      "sales" that nobody sold.
+#   ItmsGrpNam FINISHED keeps it to sellable goods, not packaging or fixed assets.
+#   TreeType <> 'I'    skips BOM parent lines, which would double-count.
+_BEV_GST_TTL = 90        # seconds, same window as the other live SAP reports
+
+
+def _bev_gst_rows(schema, table, lines, start, end):
+    """Sales-person / customer totals from one document type (OINV+INV1 for invoices,
+    ORIN+RIN1 for credit notes). Returns the raw SAP dicts, [] on error."""
+    sql = f'''
+    SELECT COALESCE(T5."SlpName", '')          AS "sp",
+           T0."CardCode"                       AS "code",
+           COALESCE(TRIM(T4."CardName"), '')   AS "name",
+           COALESCE(TRIM(G1."GSTRegnNo"), '')  AS "gstin",
+           COUNT(DISTINCT T0."DocEntry")       AS "docs",
+           SUM(T1."Quantity")                  AS "pcs",
+           -- Boxes = pieces / pieces-per-box. NULLIF guards the items whose
+           -- SalFactor2 is 0 or unset, which would otherwise divide by zero.
+           SUM(T1."Quantity" / NULLIF(T2."SalFactor2", 0)) AS "boxes",
+           SUM(T1."LineTotal")                 AS "net",
+           SUM(T1."VatSum")                    AS "gst"
+    FROM "{schema}"."{table}" T0
+    INNER JOIN "{schema}"."{lines}" T1 ON T0."DocEntry"   = T1."DocEntry"
+    INNER JOIN "{schema}"."OITM"   T2 ON T1."ItemCode"    = T2."ItemCode"
+    INNER JOIN "{schema}"."OITB"   G  ON T2."ItmsGrpCod"  = G."ItmsGrpCod"
+    INNER JOIN "{schema}"."OCRD"   T4 ON T0."CardCode"    = T4."CardCode"
+    LEFT  JOIN "{schema}"."OSLP"   T5 ON T0."SlpCode"     = T5."SlpCode"
+    LEFT  JOIN "{schema}"."CRD1"   G1 ON G1."CardCode"    = T0."CardCode"
+                                     AND G1."Address"     = T0."PayToCode"
+                                     AND G1."AdresType"   = 'B' 
+    WHERE T0."CANCELED" = 'N'
+      AND T0."DocDate" >= ? AND T0."DocDate" < ?
+      AND T4."GroupCode" <> 100
+      AND T1."TreeType" <> 'I'
+      AND G."ItmsGrpNam" = 'FINISHED'
+    GROUP BY T5."SlpName", T0."CardCode", T4."CardName", G1."GSTRegnNo"'''
+    try:
+        return sap_connector.execute_query(sql, (start, end)) or []
+    except Exception as exc:
+        logger.error('[BEV-GST] %s fetch failed: %s', table, exc)
+        return None
+
+
+def get_beverages_gst(start_date, end_date):
+    """Beverages GST report for [start_date, end_date].
+
+    Returns {status, rows, people, start, end, totals}. Each row is one customer
+    under one sales person::
+
+        {person, code, name, gstin, gstins,         # gstins = how many distinct ones
+         invoices, boxes, pcs, net, gst,             # A/R invoices
+         cn_docs,  cn_boxes, cn_pcs, cn_net, cn_gst} # credit notes, as POSITIVE numbers
+
+    'gstin' is the registration billed under. When a customer used more than one in
+    the period, 'gstins' is above 1 and 'gstin' holds the first - the page then says
+    "Multiple" rather than picking one and pretending it is the only one.
+
+    The credit-note figures ride along on every row so the page's "net of credit
+    notes" toggle needs no second trip to SAP. 'total' is left to the caller: it is
+    simply net + gst (or, netted, (net - cn_net) + (gst - cn_gst))."""
+    sd, ed = _parse_ymd(start_date), _parse_ymd(end_date)
+    if not sd or not ed:
+        return {'status': 'error', 'rows': [], 'people': [],
+                'error': 'start_date and end_date required',
+                'start': start_date, 'end': end_date}
+    if ed < sd:
+        sd, ed = ed, sd
+    key = (sd.isoformat(), ed.isoformat())
+    hit = _shared_get('bevgst', key)
+    if hit is not None:
+        return hit
+
+    # Half-open upper bound, so a DocDate stored as a timestamp still lands inside
+    # the last day instead of being cut off at midnight.
+    nxt = ed + timedelta(days=1)
+    inv = _bev_gst_rows(BEVERAGES_SCHEMA, 'OINV', 'INV1', sd, nxt)
+    if inv is None:
+        return {'status': 'error', 'rows': [], 'people': [],
+                'error': 'Could not read GST data from SAP.',
+                'start': sd.isoformat(), 'end': ed.isoformat()}
+    crn = _bev_gst_rows(BEVERAGES_SCHEMA, 'ORIN', 'RIN1', sd, nxt) or []
+
+    # Merge both document types onto one (person, customer) key. A customer with only
+    # credit notes in the period still gets a row - hiding it would quietly drop money.
+    merged = {}
+
+    def slot(r):
+        person = _clean_salesperson(r.get('sp')) or _SALES_PLACEHOLDER
+        code = _bev_cell(r.get('code'))
+        k = (person, code)
+        if k not in merged:
+            merged[k] = {'person': person, 'code': code,
+                         'name': (_bev_cell(r.get('name')) or code).upper(),
+                         '_gst': set(),
+                         'invoices': 0, 'boxes': 0.0, 'pcs': 0.0, 'net': 0.0, 'gst': 0.0,
+                         'cn_docs': 0, 'cn_boxes': 0.0, 'cn_pcs': 0.0,
+                         'cn_net': 0.0, 'cn_gst': 0.0}
+        g = _bev_cell(r.get('gstin')).upper()
+        if g:
+            merged[k]['_gst'].add(g)
+        return merged[k]
+
+    for r in inv:
+        d = slot(r)
+        d['invoices'] += int(r.get('docs') or 0)
+        d['boxes'] += _bev_num(r.get('boxes'))
+        d['pcs'] += _bev_num(r.get('pcs'))
+        d['net'] += _bev_num(r.get('net'))
+        d['gst'] += _bev_num(r.get('gst'))
+    for r in crn:
+        d = slot(r)
+        d['cn_docs'] += int(r.get('docs') or 0)
+        d['cn_boxes'] += _bev_num(r.get('boxes'))
+        d['cn_pcs'] += _bev_num(r.get('pcs'))
+        d['cn_net'] += _bev_num(r.get('net'))
+        d['cn_gst'] += _bev_num(r.get('gst'))
+
+    for d in merged.values():
+        gs = sorted(d.pop('_gst'))
+        d['gstins'] = len(gs)
+        d['gstin'] = gs[0] if gs else ''
+
+    rows = sorted(merged.values(), key=lambda d: (-d['boxes'], d['name']))
+    for d in rows:                       # round once, here, so every reader agrees
+        for f in ('net', 'gst', 'cn_net', 'cn_gst', 'boxes', 'cn_boxes', 'pcs', 'cn_pcs'):
+            d[f] = round(d[f], 2)
+
+    people = sorted({d['person'] for d in rows if d['person']})
+    payload = {
+        'status': 'ok', 'rows': rows, 'people': people,
+        'start': sd.isoformat(), 'end': ed.isoformat(),
+        'totals': {
+            'invoices': sum(d['invoices'] for d in rows),
+            'boxes': round(sum(d['boxes'] for d in rows), 2),
+            'pcs': round(sum(d['pcs'] for d in rows), 2),
+            'net': round(sum(d['net'] for d in rows), 2),
+            'gst': round(sum(d['gst'] for d in rows), 2),
+            'cn_docs': sum(d['cn_docs'] for d in rows),
+            'cn_boxes': round(sum(d['cn_boxes'] for d in rows), 2),
+            'cn_net': round(sum(d['cn_net'] for d in rows), 2),
+            'cn_gst': round(sum(d['cn_gst'] for d in rows), 2),
+        },
+    }
+    if rows:
+        _shared_set('bevgst', key, payload, _BEV_GST_TTL)
+    return payload
