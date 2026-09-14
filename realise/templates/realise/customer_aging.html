@@ -1420,6 +1420,7 @@
   // ── Raw invoices drill (Beverages) — Excel-like sortable/filterable table ──
   var RAW_COLS=[
     {key:'doc',label:'Doc No',type:'text'},{key:'date',label:'Doc Date',type:'text'},
+    {key:'month',label:'Month',type:'text'},
     {key:'days',label:'Days',type:'num'},{key:'aging',label:'Aging',type:'text'},
     {key:'name',label:'Customer',type:'text'},{key:'code',label:'Code',type:'text'},
     {key:'actual_sp',label:'Actual SP (Manual)',type:'editsp'},
@@ -1440,7 +1441,23 @@
   // Effective Actual Sales Person: the user's entry if set, otherwise defaults to the SAP Sales
   // Person — so an untouched row shows (and sorts/filters/pivots as) the original sales person.
   function effActualSp(r){ var a=r.actual_sp; return (a!=null && String(a).trim()!=='') ? a : (r.sp==null?'':r.sp); }
+  var MONTH_NAMES=['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
+  /* "2024-10-08" -> "October 2024". The digits are read straight out of the string
+     rather than through new Date(): an ISO date with no time is parsed as UTC, so in a
+     timezone behind UTC the 1st of a month slides back into the previous one and the
+     column would name the wrong month. */
+  function monthYear(v){
+    var s=String(v==null?'':v).trim();
+    if(!s) return '';
+    var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);          // YYYY-MM-DD, what the A/R rows carry
+    if(m) return (MONTH_NAMES[+m[2]-1]||'')+' '+m[1];
+    m=/^(\d{2})[-\/](\d{2})[-\/](\d{4})/.exec(s);      // DD-MM-YYYY, the display format
+    if(m) return (MONTH_NAMES[+m[2]-1]||'')+' '+m[3];   // day first here, never month first
+    return '';                                          // unknown shape: blank beats a wrong month
+  }
   function rawVal(r,col){
+    if(col.key==='month') return monthYear(r.date);
     if(col.key==='aging') return bucketLabelForDays(r.days);
     if(col.key==='actual_sp') return effActualSp(r);
     return r[col.key]==null?'':r[col.key];
@@ -1500,7 +1517,10 @@
       // Decorate → sort → undecorate: read the sort value once per row instead of twice per
       // comparison (localeCompare on freshly built strings was the bulk of a big sort).
       var isNum=isNumCol(col);
-      var dec=rows.map(function(r){ var v=rawVal(r,col);
+      var dec=rows.map(function(r){
+        // Month sorts on its DATE. Sorting the printed name would order April before
+        // January - alphabetical, not chronological. YYYY-MM-DD sorts correctly as text.
+        var v = col.key==='month' ? (r.date==null?'':String(r.date)) : rawVal(r,col);
         return {r:r, k:isNum?(Number(v)||0):String(v)}; });
       dec.sort(isNum ? function(a,b){ return (a.k-b.k)*dir; }
                      : function(a,b){ return a.k.localeCompare(b.k)*dir; });
