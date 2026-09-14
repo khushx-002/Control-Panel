@@ -210,6 +210,15 @@
   tr.ag-tot .neg{color:var(--rz-neg)}
 
   .ag-empty{padding:40px;text-align:center;color:#7b8794}
+  /* Small confirmation strip, bottom-centre. Its own element: the panel's shared
+     toast lives in dashboard.js and this page does not load that bundle. */
+  .ag-toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:9999;
+        max-width:min(560px,92vw);padding:11px 18px;border-radius:11px;font-size:13px;font-weight:700;
+        background:#1e293b;color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.22);
+        opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+  .ag-toast.show{opacity:1;transform:translate(-50%,0)}
+  .ag-toast-ok{background:#047857}
+  .ag-toast-err{background:#b91c1c}
   .ag-foot{font-size:11.5px;color:#94a3b8;margin:12px 2px 0;display:flex;gap:6px;align-items:center}
   .ag-foot .ic{font-size:15px}
 
@@ -561,6 +570,19 @@
   }
   var ASOF = DATA.aging_date || '';
   function csrf(){var m=document.querySelector('meta[name=csrf-token]');return m?m.content:'';}
+  /* The panel's shared showToast() is defined in dashboard.js, which this page does not
+     load - so all three calls here threw "showToast is not defined" and the export's
+     confirmation (and its failure message) was lost, leaving only a console error.
+     Self-contained, same name and signature. */
+  var _toastT = null;
+  function showToast(msg, type){
+    var el = document.getElementById('agToast');
+    if(!el){ el = document.createElement('div'); el.id = 'agToast'; document.body.appendChild(el); }
+    el.textContent = msg;
+    el.className = 'ag-toast ag-toast-' + (type || 'info') + ' show';
+    clearTimeout(_toastT);
+    _toastT = setTimeout(function(){ el.classList.remove('show'); }, 3500);
+  }
   var COLORS  = BUCKETS.map(function(b){return b.color;});
   var NCOL    = 3 + BUCKETS.length;   // label + original + balance + buckets
 
@@ -1881,6 +1903,15 @@
     btn.disabled = true; btn.textContent = 'Building\u2026';
     var cols = RAW_COLS.slice();
     var nc = cols.length, numFlag = cols.map(isNumCol);   // hoisted out of the per-row loop
+    // Outstanding is the customer's whole ledger balance, which SAP repeats on every one
+    // of that customer's open invoices. Copied down the sheet it reads as many different
+    // amounts when it is one, and selecting the column in Excel totals that single balance
+    // once per invoice. So write it on the first row the customer appears on and leave it
+    // blank after that - one value per customer, whatever the invoice numbers are.
+    var osCol = -1;
+    for(var ci=0; ci<nc; ci++){ if(cols[ci].key === 'outstanding') osCol = ci; }
+    var osSeen = {};                 // 'c'+code -> already written (prefixed so a code
+                                     // like "constructor" cannot collide with Object's own keys)
     var fname = arCfg().name + ' Aging';
     var payload = {
       filename: fname,
@@ -1892,6 +1923,14 @@
         for(var i=0;i<nc;i++){
           var v = rawVal(r, cols[i]);
           out[i] = numFlag[i] ? (Math.round(Number(v)||0)) : (v==null ? '' : String(v));
+        }
+        if(osCol >= 0){
+          // Key on the customer code, falling back to the name when a row has no code -
+          // without the fallback every code-less row would share one key and only the
+          // first would keep its figure.
+          var ck = 'c' + String((r.code==null || r.code==='') ? (r.name==null?'':r.name) : r.code);
+          if(osSeen[ck]) out[osCol] = '';
+          else osSeen[ck] = 1;
         }
         return out;
       }),
