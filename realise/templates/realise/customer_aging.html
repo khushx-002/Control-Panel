@@ -2260,7 +2260,14 @@
     // Conditions popup — Excel-style numeric filter on Balance Due (≥ / ≤ / between).
     var condBox = document.getElementById('agCond');
     document.getElementById('agCondBtn').addEventListener('click',function(e){ e.stopPropagation(); condBox.classList.toggle('open'); });
-    document.addEventListener('click',function(e){ if(!condBox.contains(e.target)) condBox.classList.remove('open'); });
+    document.addEventListener('click',function(e){
+      if(condBox.contains(e.target)) return;
+      /* The custom select and calendar render their list into <body>, not inside this
+         popup, so a plain "is it inside?" test read a click on an option as a click
+         OUTSIDE and shut the whole panel the moment a condition was chosen. */
+      if(e.target && e.target.closest && e.target.closest('.bksel,.bkdp')) return;
+      condBox.classList.remove('open');
+    });
     // Amounts offered as one-click buttons. Edit this list to change them.
     var QUICK_AMOUNTS = [1, 100, 500, 1000];
 
@@ -2276,6 +2283,9 @@
           document.getElementById(inputId).value = v;
           Array.prototype.forEach.call(row.children, function(c){ c.classList.remove('on'); });
           b.classList.add('on');
+          /* Picking an amount IS the decision - no reason to make the user find Apply.
+             Held back only while "between" still wants its second amount. */
+          if(condReady()) applyCond();
         });
         row.appendChild(b);
       });
@@ -2310,7 +2320,15 @@
       if(m && m.classList.contains('show')) renderRawSoon();
     }
 
-    document.getElementById('agCondApply').addEventListener('click',function(){
+    /* Is there enough to filter on yet? "Between" needs BOTH amounts - picking only the
+       lower one is half an answer, so the panel must stay open for the upper one. */
+    function condReady(){
+      var op = document.getElementById('agCondOp').value;
+      var a = parseFloat(document.getElementById('agCondA').value);
+      var b = parseFloat(document.getElementById('agCondB').value);
+      return !!op && !isNaN(a) && (op !== 'between' || !isNaN(b));
+    }
+    function applyCond(){
       var op = document.getElementById('agCondOp').value;
       var a = parseFloat(document.getElementById('agCondA').value);
       var b = parseFloat(document.getElementById('agCondB').value);
@@ -2321,7 +2339,8 @@
       condBox.classList.remove('open');
       applyFilters();
       refreshRawIfOpen();
-    });
+    }
+    document.getElementById('agCondApply').addEventListener('click', applyCond);
     document.getElementById('agCondClear').addEventListener('click',function(){
       cond = {op:'',a:0,b:0};
       document.getElementById('agCondOp').value = '';
