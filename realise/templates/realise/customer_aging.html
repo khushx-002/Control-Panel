@@ -1907,7 +1907,9 @@
     // of that customer's open invoices. Copied down the sheet it reads as many different
     // amounts when it is one, and selecting the column in Excel totals that single balance
     // once per invoice. So write it on the first row the customer appears on and leave it
-    // blank after that - one value per customer, whatever the invoice numbers are.
+    // 0 after that - one real value per customer, whatever the invoice numbers are.
+    // 0 rather than an empty cell so the column stays numeric the whole way down and
+    // a SUM over it still adds each customer's balance exactly once.
     var osCol = -1;
     for(var ci=0; ci<nc; ci++){ if(cols[ci].key === 'outstanding') osCol = ci; }
     var osSeen = {};                 // 'c'+code -> already written (prefixed so a code
@@ -1929,7 +1931,7 @@
           // without the fallback every code-less row would share one key and only the
           // first would keep its figure.
           var ck = 'c' + String((r.code==null || r.code==='') ? (r.name==null?'':r.name) : r.code);
-          if(osSeen[ck]) out[osCol] = '';
+          if(osSeen[ck]) out[osCol] = 0;
           else osSeen[ck] = 1;
         }
         return out;
