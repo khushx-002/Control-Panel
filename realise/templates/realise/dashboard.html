@@ -315,17 +315,25 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 .sc2-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:4px}
 .sc2-title h2{font-size:32px;font-weight:900;letter-spacing:.35px;text-transform:uppercase;color:#111827}
 .sc2-title p{display:none}
-.sc2-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.sc2-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .sc2-nav{display:flex;align-items:center;gap:8px}
 .sc2-nav .slide-btn{min-width:34px;height:34px;border-radius:12px}
 .sc2-nav .slide-indicator{min-width:auto;font-size:12px}
 .sc2-pill{padding:8px 14px;border-radius:999px;border:1px solid #d8e0ea;background:#fff;font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.55px;box-shadow:0 4px 12px rgba(15,23,42,.04)}
-.sc2-drillbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* One row, and every control wears its name above it instead of beside it. Bare buttons
+   (Fetch / Today's Sales / Export Excel / Update Targets) have no label, so the row is
+   bottom-aligned - that lines their tops up with the inputs, not with the small captions. */
+.sc2-drillbar{display:flex;align-items:flex-end;gap:9px;flex-wrap:nowrap}
+.sc2-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sc2-drillbar .com-drill{flex-direction:column;align-items:stretch;gap:4px}
+/* Let the fields give way rather than spill off the edge when the window is narrow. */
+.sc2-drillbar input[type=date],.sc2-drillbar select{min-width:0}
+@media (max-width:1180px){.sc2-drillbar{flex-wrap:wrap;align-items:flex-end}}
 /* Update Targets: pinned far-right + sized to match the Export Excel button (sc2-today-btn) */
 .sc2-drillbar .sc2-targets-right{margin-left:auto;padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:.3px;border-radius:10px;gap:6px}
 /* Wrap instead of scroll: overflow-x:auto here forces overflow-y to clip too, which cut off
    the Drill-Order dropdown that opens below the bar. Wrapping lets it overflow freely. */
-.sc2-period-bar{flex-wrap:wrap;padding-bottom:3px}
+.sc2-period-bar{padding-bottom:3px}
 .sc2-drillbar label{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#64748b}
 .sc2-drillbar select{min-width:0;width:auto;background:#fff;border:1px solid #d9e5ee;color:#1f2937;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;outline:none}
 .sc2-drillbar select:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-glow)}
@@ -387,8 +395,12 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 .k-done  {--k-acc:var(--rz-acc-green); --k-edge:#16a34a;--k-ink:#14532d;--k-tint:#ecfdf5}
 .k-oih   {--k-acc:var(--rz-acc-amber); --k-edge:#d97706;--k-ink:#7c2d12;--k-tint:#fff7ed}
 .k-bal   {--k-acc:var(--rz-acc-teal);  --k-edge:#0d9488;--k-ink:#134e4a;--k-tint:#f0fdfa}
-.sc2-kpi.sc2-kpi-click{cursor:pointer;transition:box-shadow .15s,transform .15s,border-color .15s}
-.sc2-kpi.sc2-kpi-click:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);border-color:#9bc0f5}
+/* The lift on hover belongs to EVERY card, so the row reacts as one - Target Ltr used to
+   sit dead while the other three lifted, which read like it was broken. The pointer cursor
+   stays on the clickable ones only, so a card that opens nothing never pretends it does. */
+.sc2-kpi{transition:box-shadow .15s,transform .15s,border-color .15s}
+.sc2-kpi:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);border-color:#9bc0f5}
+.sc2-kpi.sc2-kpi-click{cursor:pointer}
 .oih-kpi-summary{display:flex;gap:12px;margin:14px 0 8px}
 .oih-kpi-box{flex:1;background:#f1f5fb;border:1px solid #dbe3ec;border-radius:10px;padding:10px 14px}
 .oih-kpi-box span{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#64748b;margin-bottom:4px}
@@ -397,9 +409,17 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 .oih-tw.open{transform:rotate(90deg)}
 .oih-tw-empty{display:inline-block;width:13px;margin-right:7px}
 .sc2-kpi label{display:block;font-size:10px;font-weight:800;letter-spacing:.65px;text-transform:uppercase;color:#64748b;margin:0}
-.sc2-kpi-val>span:first-child{font-size:27px;font-weight:800;line-height:1.05;
+/* Archivo, not --rz-num-plain. That token resolves to Segoe UI / system-ui,
+   whose heaviest real face is 700 - so font-weight 800 AND 900 both clamped
+   down to the same ordinary bold, which is why raising the number changed
+   nothing on screen. Archivo is already loaded on every page (base.html) as a
+   variable font spanning 100-900, and its 900 is a true Black cut, so the
+   weight is real rather than a request the font cannot honour. Inter was tried
+   first and reads too light next to the realise line at this size. */
+.sc2-kpi-val>span:first-child{font-size:27px;font-weight:900;line-height:1.05;
   color:var(--k-ink,#111827);letter-spacing:-.4px;
-  font-variant-numeric:tabular-nums;font-family:var(--rz-num-plain);
+  font-variant-numeric:tabular-nums;
+  font-family:'Archivo',var(--rz-num-plain);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc2-kpi-val>span.pos{color:#16a34a}
 .sc2-kpi-val>span.neg{color:#dc2626}
@@ -646,9 +666,10 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   <section class="rd-slide" id="slideTwo">
     <div class="sc2-wrap">
       <div class="sc2-head">
-        <div class="sc2-title">
-          <h2>Sales Channel Dashboard</h2>
-        </div>
+        {% comment %}
+          Title removed on request. .sc2-actions carries margin-left:auto so the controls
+          stay right-aligned now that there is nothing on the left to push them over.
+        {% endcomment %}
         <div class="sc2-actions">
           <div class="ds-toggle" role="group" aria-label="Dataset">
             <button type="button" class="ds-btn ds-oils active" onclick="switchDataset('oils')">OILS</button>
@@ -658,17 +679,80 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
             <button class="slide-btn" onclick="nextSlide()" aria-label="Next slide">&#8250;</button>
             <div class="slide-indicator">Slide 1 / 2</div>
           </div>
-          <div class="ar-ctl">
-            <button type="button" class="ar-toggle on" id="arToggle" onclick="toggleAutoRefresh()" aria-pressed="true"
-                    title="Live — checking for new data every 15s. Click to pause.">
-              <span class="ar-dot" aria-hidden="true"></span><span id="arToggleLbl">Live</span>
-            </button>
-            <span id="arUpdated" class="ar-updated" title="Last data refresh">connecting&hellip;</span>
-          </div>
-          <button type="button" class="btn btn-ghost" id="sc2ExportBtn" onclick="exportChannelCSV()">&#11015; Export CSV</button>
+          {% comment %}
+            Live pill removed. It was only ever a status light with a pause switch
+            attached; live is now permanently on, so there is nothing to report or
+            toggle. arRenderUpdated() already no-ops when these elements are absent.
+          {% endcomment %}
         </div>
       </div>
-      <!-- KPIs sit above all the filters/buttons per the requested layout. -->
+      <!-- Every control on one row, above the KPI cards. -->
+      <div class="sc2-drillbar sc2-period-bar">
+        <span id="sc2RangeCtl" style="display:contents">
+          <div class="sc2-fld"><label for="sc2From">From</label>
+            <input type="date" id="sc2From"></div>
+          <div class="sc2-fld"><label for="sc2To">To</label>
+            <input type="date" id="sc2To"></div>
+        </span>
+        <div class="sc2-fld"><label for="sc2Segment">Segment</label>
+          <select id="sc2Segment" onchange="renderSlideTwo()">
+            <option value="">All</option>
+            <option value="PREMIUM">Premium</option>
+            <option value="COMMODITY">Commodity</option>
+          </select></div>
+        {% comment %}
+          Fetch button removed: changing From/To reloads by itself, and the live
+          heartbeat re-pulls whenever SAP changes - there was nothing left to click.
+        {% endcomment %}
+        <div class="sc2-fld"><label for="sc2DrillBy">Drill By</label>
+          <select id="sc2DrillBy" onchange="onSlideTwoDrillChange()">
+            <option value="main_group">Main Group</option>
+            <option value="person">Sales Person</option>
+            <option value="state">State</option>
+          </select></div>
+        <div id="sc2DynWrap" class="com-drill" style="display:none">
+          <label>Drill Order</label>
+          <div class="com-drill-box">
+            <button type="button" class="com-drill-btn" id="sc2DynBtn">
+              <span id="sc2DynLabel">State</span><span class="com-caret">&#9662;</span>
+            </button>
+            <div class="com-drill-panel" id="sc2DynPanel">
+              <div class="com-dp-head"><a id="sc2DynSelAll">Select All</a><a id="sc2DynClrAll">Clear All</a></div>
+              <div class="com-dp-list" id="sc2DynList"></div>
+              <div class="com-dp-foot"><button type="button" id="sc2DynApply">Apply</button></div>
+            </div>
+          </div>
+        </div>
+        <div id="comDrillWrap" class="com-drill" style="display:none">
+          <label>Drill By</label>
+          <div class="com-drill-box">
+            <button type="button" class="com-drill-btn" id="comDrillBtn">
+              <span id="comDrillLabel">Product</span><span class="com-caret">&#9662;</span>
+            </button>
+            <div class="com-drill-panel" id="comDrillPanel">
+              <div class="com-dp-head"><a id="comSelAll">Select All</a><a id="comClrAll">Clear All</a></div>
+              <div class="com-dp-list" id="comDpList"></div>
+              <div class="com-dp-foot"><button type="button" id="comApply">Apply</button></div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="sc2-today-btn" id="sc2TodayBtn" onclick="openTodaySales()" title="Today's Premium &amp; Commodity sales (litres)">
+          <i class="ic ic-calendar-check"></i>Today's Sales
+        </button>
+        <div class="sc2-fld"><label for="cdView">View</label>
+          <select id="cdView" onchange="onCdViewChange()" title="Channel card view — Flexible adds editable Flex TGT / Dent columns">
+            <option value="fixed">Fixed View</option>
+            <option value="flex">Flexible View</option>
+          </select></div>
+        <button type="button" class="sc2-today-btn" id="sc2RawExportBtn" onclick="exportMainRawCSV()" title="Export the raw data behind this view (Excel/CSV)">
+          <i class="ic ic-download"></i>Export Excel
+        </button>
+        <button type="button" class="sc2-today-btn" id="sc2ExportBtn" onclick="exportChannelCSV()"
+                title="Export the channel rows as CSV">&#11015; Export CSV</button>
+        <a class="btn btn-edit sc2-targets-right" id="sc2TargetsLink" href="{% url 'realise:channel_targets' %}">Update Targets</a>
+      </div>
+      <!-- KPI cards sit BELOW the control bar: the filters decide what the cards
+           are counting, so they are read first. -->
       <div class="sc2-kpis" id="channelKpis">
         <div class="sc2-kpi k-target">
           <div class="sc2-kpi-main">
@@ -732,71 +816,185 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
           realise line - see sc2KpiDoneRealise in dashboard.js.
         {% endcomment %}
       </div>
-      <div class="sc2-drillbar sc2-period-bar">
-        <span id="sc2RangeCtl" style="display:contents">
-          <label for="sc2From">From</label>
-          <input type="date" id="sc2From">
-          <label for="sc2To">To</label>
-          <input type="date" id="sc2To">
-        </span>
-        <label for="sc2Segment">Segment</label>
-        <select id="sc2Segment" onchange="renderSlideTwo()">
-          <option value="">All</option>
-          <option value="PREMIUM">Premium</option>
-          <option value="COMMODITY">Commodity</option>
-        </select>
-        <button class="btn btn-edit" id="sc2FetchBtn" onclick="loadSlideTwoData()" style="padding:8px 16px">&#9654; Fetch</button>
-        <label for="sc2DrillBy">Drill By</label>
-        <select id="sc2DrillBy" onchange="onSlideTwoDrillChange()">
-          <option value="main_group">Main Group</option>
-          <option value="person">Sales Person</option>
-          <option value="state">State</option>
-        </select>
-        <div id="sc2DynWrap" class="com-drill" style="display:none">
-          <label>Drill Order</label>
-          <div class="com-drill-box">
-            <button type="button" class="com-drill-btn" id="sc2DynBtn">
-              <span id="sc2DynLabel">State</span><span class="com-caret">&#9662;</span>
-            </button>
-            <div class="com-drill-panel" id="sc2DynPanel">
-              <div class="com-dp-head"><a id="sc2DynSelAll">Select All</a><a id="sc2DynClrAll">Clear All</a></div>
-              <div class="com-dp-list" id="sc2DynList"></div>
-              <div class="com-dp-foot"><button type="button" id="sc2DynApply">Apply</button></div>
-            </div>
+      <!-- Where the litres go: the same channel rows slide two already has,
+           summed per state and shaded on the map. Plain SVG - see state_map.js. -->
+      <section class="rsm-card">
+        <div class="rsm-head">
+          <div>
+            <h3>Where the litres go</h3>
           </div>
+          <span class="rsm-chip" id="rsmChip">No data yet</span>
         </div>
-        <div id="comDrillWrap" class="com-drill" style="display:none">
-          <label>Drill By</label>
-          <div class="com-drill-box">
-            <button type="button" class="com-drill-btn" id="comDrillBtn">
-              <span id="comDrillLabel">Product</span><span class="com-caret">&#9662;</span>
-            </button>
-            <div class="com-drill-panel" id="comDrillPanel">
-              <div class="com-dp-head"><a id="comSelAll">Select All</a><a id="comClrAll">Clear All</a></div>
-              <div class="com-dp-list" id="comDpList"></div>
-              <div class="com-dp-foot"><button type="button" id="comApply">Apply</button></div>
-            </div>
+        <div class="rsm-body">
+          <div class="rsm-map" id="rsmWrap" data-geo-url="{% static 'core/geo/india_states.geojson' %}">
+            <div class="rsm-empty" id="rsmEmpty">Fetch a date range and the map fills in.</div>
+            <svg class="rsm-svg" id="rsmSvg" viewBox="0 0 600 680" role="img"
+                 aria-label="India map shaded by litres sold per state" hidden></svg>
+            <div class="rsm-scale" id="rsmScale" hidden><span>Less</span><i></i><span>More</span></div>
+            <div class="rsm-tip" id="rsmTip"></div>
           </div>
+          <aside class="rsm-side">
+            <h4>States by litres</h4>
+            <div id="rsmList"><p class="rsm-empty-note">The list fills in once data loads.</p></div>
+          </aside>
         </div>
-        <button type="button" class="sc2-today-btn" id="sc2TodayBtn" onclick="openTodaySales()" title="Today's Premium &amp; Commodity sales (litres)">
-          <i class="ic ic-calendar-check"></i>Today's Sales
-        </button>
-        <label for="cdView">View</label>
-        <select id="cdView" onchange="onCdViewChange()" title="Channel card view — Flexible adds editable Flex TGT / Dent columns">
-          <option value="fixed">Fixed View</option>
-          <option value="flex">Flexible View</option>
-        </select>
-        <button type="button" class="sc2-today-btn" id="sc2RawExportBtn" onclick="exportMainRawCSV()" title="Export the raw data behind this view (Excel/CSV)">
-          <i class="ic ic-download"></i>Export Excel
-        </button>
-        <a class="btn btn-edit sc2-targets-right" id="sc2TargetsLink" href="{% url 'realise:channel_targets' %}">Update Targets</a>
-      </div>
+      </section>
+
       <div class="sc2-grid" id="channelGrid"></div>
     </div>
   </section>
 </div>
 
 <style>
+  /* ---- State map ------------------------------------------------------
+     The Ecom app's green, value for value, so both maps read as one family.
+
+     Slide two used to be locked to exactly one screen: .sc2-wrap is a
+     fixed-height flex column with overflow:hidden, and .sc2-grid was the only
+     part that scrolled. A card as tall as the map cannot live in that - flex
+     simply shrinks it to nothing. So the scrolling moves up one level: the
+     whole slide scrolls, and the channel grid sizes to its content. Delete
+     these three rules to put the old behaviour back exactly. */
+  #slideTwo .sc2-wrap{overflow:auto}
+  #slideTwo .sc2-grid{overflow:visible;flex:0 0 auto}
+  #slideTwo .rsm-card{flex:0 0 auto}
+
+  .rsm-card{
+    background:#fff;border:1px solid #dcebe1;border-radius:14px;margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(21,94,48,.05),0 8px 24px rgba(21,94,48,.06);overflow:hidden;
+  }
+  .rsm-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:15px 18px 13px;border-bottom:1px solid #e6f1ea;
+  }
+  .rsm-head h3{font-family:var(--font-display,Georgia,serif);font-weight:400;font-size:18px;color:#14301f}
+  .rsm-chip{
+    font-size:11.5px;font-weight:700;color:#155e30;background:#e8f6ed;
+    border:1px solid #c3e4cf;padding:5px 12px;border-radius:999px;white-space:nowrap;
+  }
+  .rsm-body{display:grid;grid-template-columns:1fr 250px}
+  .rsm-map{position:relative;padding:8px 8px 12px;min-height:400px}
+  .rsm-svg{width:100%;height:auto;max-height:540px;display:block;overflow:visible}
+  /* The raised edge: nine copies of the same paths, each a step lower, with one
+     soft shadow under the whole stack. Ordinary SVG, no 3D library. */
+  .rsm-extrude{filter:drop-shadow(0 12px 12px rgba(24,61,39,.28));pointer-events:none}
+  .rsm-wall{fill:#3f7d57;stroke:none}
+  .rsm-state{
+    stroke:#ffffff;stroke-width:.6;cursor:pointer;transform-box:fill-box;transform-origin:center;
+    transition:fill .25s ease,filter .2s ease,transform .2s ease;
+  }
+  .rsm-state:hover{filter:brightness(1.08);transform:scale(1.015)}
+  .rsm-state.is-on{filter:brightness(1.1) drop-shadow(0 0 4px rgba(21,94,48,.55))}
+  .rsm-svg.is-entering .rsm-state{animation:rsmRise .5s cubic-bezier(.2,.7,.3,1) backwards}
+  @keyframes rsmRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  .rsm-tip{
+    position:absolute;pointer-events:none;z-index:9;display:none;
+    transform:translate(-50%,calc(-100% - 14px));background:#14301f;color:#f2fbf5;
+    padding:8px 12px;border-radius:8px;box-shadow:0 8px 20px rgba(44,35,24,.3);white-space:nowrap;
+  }
+  .rsm-tip.show{display:block}
+  .rsm-tip b{display:block;font-size:12.5px;font-weight:700}
+  .rsm-tip span{font-size:11.5px;color:#a8cdb7;font-variant-numeric:tabular-nums}
+  .rsm-empty{
+    display:flex;align-items:center;justify-content:center;min-height:380px;
+    color:#6f8578;font-size:12.5px;text-align:center;padding:0 24px;line-height:1.7;
+  }
+  .rsm-scale{display:flex;align-items:center;gap:9px;font-size:11px;color:#6f8578;padding:0 10px 2px}
+  .rsm-scale i{flex:1;max-width:190px;height:7px;border-radius:999px;
+    background:linear-gradient(90deg,#e2f3e6,#3f7d57,#155e30)}
+  .rsm-side{
+    border-left:1px solid #e6f1ea;padding:12px 6px 14px 14px;max-height:540px;overflow-y:auto;
+    background:linear-gradient(180deg,#fff,#f7fbf8);
+  }
+  .rsm-side h4{
+    font-size:11px;font-weight:800;color:#6f8578;letter-spacing:.04em;
+    padding-bottom:9px;border-bottom:1px solid #e6f1ea;margin-bottom:4px;
+  }
+  .rsm-row{
+    display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;
+    padding:8px 10px 8px 0;border-bottom:1px solid #eef5f1;
+  }
+  .rsm-row:last-child{border-bottom:0}
+  .rsm-row:hover,.rsm-row.is-on{background:#e8f6ed;border-radius:8px}
+  .rsm-row-name{font-size:12.5px;color:#14301f;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsm-row-val{font-size:12.5px;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums}
+  .rsm-row-bar{grid-column:1/-1;height:4px;border-radius:999px;background:#e9f2ec;overflow:hidden}
+  .rsm-row-bar i{display:block;height:100%;border-radius:999px;transform-origin:left;
+    background:linear-gradient(90deg,#4f9c6b,#155e30);
+    animation:rsmGrow .6s cubic-bezier(.2,.7,.3,1) backwards}
+  @keyframes rsmGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .rsm-empty-note{font-size:12.5px;color:#6f8578;padding:18px 10px 0;line-height:1.7}
+  .rsm-state.has-data{cursor:pointer}
+  .rsm-row{cursor:pointer}
+  .rsm-row:focus-visible{outline:2px solid #155e30;outline-offset:-2px;border-radius:8px}
+
+  /* ---- click a state: its own breakdown, from rows already in the page ---- */
+  .rsmp-back{
+    position:fixed;inset:0;z-index:300;background:rgba(14,38,24,.42);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    animation:rsmpFade .18s ease-out;
+  }
+  @keyframes rsmpFade{from{opacity:0}to{opacity:1}}
+  .rsmp{
+    background:#fff;border-radius:16px;width:min(760px,100%);max-height:86vh;
+    display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 24px 60px rgba(14,38,24,.3);animation:rsmpUp .22s cubic-bezier(.2,.7,.3,1);
+  }
+  @keyframes rsmpUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .rsmp-head{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+    padding:18px 20px 14px;border-bottom:1px solid #e6f1ea;
+    background:linear-gradient(180deg,#f3faf5,#fff);
+  }
+  .rsmp-head h3{font-family:var(--font-display,Georgia,serif);font-weight:400;font-size:22px;color:#14301f}
+  .rsmp-head p{font-size:11.5px;color:#6f8578;margin-top:3px}
+  .rsmp-x{
+    border:1px solid #d8e9df;background:#fff;color:#4a6154;width:30px;height:30px;
+    border-radius:9px;font-size:19px;line-height:1;cursor:pointer;flex:0 0 auto;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .rsmp-x:hover{background:#e8f6ed;color:#155e30;border-color:#a9d6bc}
+  .rsmp-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e6f1ea}
+  .rsmp-kpis>div{background:#fff;padding:13px 20px}
+  .rsmp-kpis span{display:block;font-size:10.5px;font-weight:800;color:#8fa398;letter-spacing:.04em}
+  .rsmp-kpis b{
+    display:block;margin-top:5px;font-size:21px;font-weight:800;color:#14301f;
+    font-variant-numeric:tabular-nums;
+  }
+  .rsmp-kpis b small{font-size:11.5px;font-weight:700;color:#8fa398;margin-left:2px}
+  .rsmp-body{overflow-y:auto;padding:6px 20px 20px}
+  .rsmp-block{margin-top:16px}
+  .rsmp-block h4{
+    font-size:11px;font-weight:800;color:#6f8578;letter-spacing:.05em;
+    padding-bottom:7px;border-bottom:1px solid #eef5f1;
+  }
+  .rsmp-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .rsmp-tbl td{padding:8px 0;border-bottom:1px solid #f3f8f5;vertical-align:middle}
+  .rsmp-tbl tr:last-child td{border-bottom:0}
+  .rsmp-n{color:#14301f;font-weight:600;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsmp-v{text-align:right;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:14px!important}
+  .rsmp-v small{font-size:9.5px;font-weight:700;color:#8fa398;margin-left:3px}
+  .rsmp-m{text-align:right;color:#4a6154;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:14px!important}
+  .rsmp-b{width:26%;padding-left:14px!important}
+  .rsmp-b i{display:block;height:5px;border-radius:999px;background:linear-gradient(90deg,#4f9c6b,#155e30)}
+  .rsmp-p{text-align:right;color:#8fa398;font-variant-numeric:tabular-nums;width:38px;padding-left:8px!important}
+  @media (max-width:640px){
+    .rsmp-kpis{grid-template-columns:1fr}
+    .rsmp-b,.rsmp-m{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .rsmp-back,.rsmp{animation:none}
+  }
+  @media (max-width:1100px){
+    .rsm-body{grid-template-columns:1fr}
+    .rsm-side{border-left:0;border-top:1px solid #e6f1ea;max-height:280px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .rsm-svg.is-entering .rsm-state,.rsm-row-bar i{animation:none}
+    .rsm-state{transition:none}
+  }
+
   .ds-toggle{display:inline-flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;background:#fff}
   .ds-btn{border:0;background:#fff;color:#475569;font-family:inherit;font-weight:800;font-size:12px;letter-spacing:.04em;padding:8px 14px;cursor:pointer;transition:background .15s,color .15s}
   .ds-btn+.ds-btn{border-left:1px solid #e2e8f0}
@@ -1599,5 +1797,13 @@ window.__CP = {
   the template around it is already new - which shows up as a KPI that never fills
   in. Bump this number whenever dashboard.js changes.
 {% endcomment %}
-<script src="{% static 'realise/dashboard.js' %}?v=30" defer></script>
+<script src="{% static 'realise/dashboard.js' %}?v=31" defer></script>
+{% comment %}
+  State map. d3-geo only turns the geojson outlines into SVG path data - the
+  look is CSS. Both are deferred, so they run in order after dashboard.js and
+  state_map.js can see the functions it wraps.
+{% endcomment %}
+<script src="{% static 'vendor/js/d3-array.min.js' %}" defer></script>
+<script src="{% static 'vendor/js/d3-geo.min.js' %}" defer></script>
+<script src="{% static 'realise/state_map.js' %}?v=3" defer></script>
 {% endblock %}

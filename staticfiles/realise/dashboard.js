@@ -475,9 +475,11 @@ function toggleAutoRefresh(){
   else { arStart(); arRenderUpdated(); showToast('Live updates on - the page refreshes itself when data changes','info'); }
 }
 function initAutoRefresh(){
-  // ON unless this browser explicitly paused it. No click needed on a fresh visit.
-  var cfg={}; try{ cfg=JSON.parse(localStorage.getItem(AR_KEY)||'{}')||{}; }catch(e){}
-  arPaused = cfg.paused===true;
+  // Always on. The pill that used to pause it is gone from the page, so a remembered
+  // pause would be a trap with no way out - a browser that had ever paused would sit on
+  // stale figures for good. Force it on and throw the stored flag away.
+  arPaused = false;
+  try{ localStorage.removeItem(AR_KEY); }catch(e){}
   arRenderUpdated();
   setInterval(arRenderUpdated, 5000);    // keep the "Xs ago" / reason label honest
   // Coming back to the tab should show current data at once, not up to a full interval later.
@@ -1452,6 +1454,7 @@ document.addEventListener('DOMContentLoaded',function(){
   // #products deep-links to the OILS product table (internal index 0, shown second).
   var startSlide=(location.hash==='#products')?0:1;
   restoreSlideTwoCache();
+  wireSlideTwoAutoFetch();
   setSlide(startSlide);
   applyRoleRestrictions();
   loadSavedTargets().then(function(){
@@ -1460,6 +1463,24 @@ document.addEventListener('DOMContentLoaded',function(){
     });
   });
 });
+
+/* The Fetch button was the only thing that re-ran the query after a date change, and it
+   has been removed from the toolbar - so the inputs now reload by themselves.
+
+   'change', not 'input': a date field fires input on every keystroke while a date is being
+   typed, which would fire a SAP query per digit. change fires once, when a date is actually
+   settled on. The months box additionally waits for Enter or for focus to leave. */
+function wireSlideTwoAutoFetch(){
+  ['sc2From','sc2To'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('change', function(){ loadSlideTwoData(); });
+  });
+  var m=document.getElementById('sc2Months');
+  if(m){
+    m.addEventListener('change', function(){ loadSlideTwoData(); });
+    m.addEventListener('keydown', function(e){ if(e.key==='Enter') loadSlideTwoData(); });
+  }
+}
 
 async function checkHealth(){
   try{
