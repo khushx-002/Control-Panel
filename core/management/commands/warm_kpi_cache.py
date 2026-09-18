@@ -4,9 +4,12 @@ Run it on a schedule (every 5 minutes is a good start):
 
     python manage.py warm_kpi_cache
 
-It builds the top-strip ticker and the home-page KPI cards for the current
-month, and by default the previous month too, because every "vs last month"
-figure needs it.
+It builds the top-strip ticker for the current month, and by default the
+previous month too, because every "vs last month" figure needs it.
+
+It used to warm the home-page KPI cards as well. That page is gone - Sales is
+the main page now - so nothing reads that cache any more and warming it would
+only cost SAP round-trips for figures no one would see.
 """
 
 import time
@@ -15,9 +18,6 @@ from datetime import date
 from django.core.management.base import BaseCommand
 
 from core.context_processors import get_ticker_items
-from home import services as home_services
-from home.views import _KPI_FETCHERS, CACHE_TTL
-from django.core.cache import cache
 
 
 def _prev_month(year, month):
@@ -25,7 +25,7 @@ def _prev_month(year, month):
 
 
 class Command(BaseCommand):
-    help = 'Pre-build the ticker and home KPI caches so pages load instantly.'
+    help = 'Pre-build the top-strip ticker cache so pages load instantly.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -40,18 +40,7 @@ class Command(BaseCommand):
         for _ in range(max(1, options['months'])):
             started = time.time()
 
-            # 1. the top strip
             get_ticker_items(year, month, blocking=True)
-
-            # 2. the home page cards
-            kpis = {}
-            for name, fetcher in _KPI_FETCHERS:
-                try:
-                    kpis[name] = fetcher(year, month)
-                except Exception as e:
-                    self.stderr.write(f'  {name} failed: {e}')
-            if kpis:
-                cache.set(f'home_kpis_{year}_{month:02d}', kpis, CACHE_TTL)
 
             self.stdout.write(self.style.SUCCESS(
                 f'warmed {year}-{month:02d} in {time.time() - started:.1f}s'

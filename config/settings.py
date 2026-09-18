@@ -58,6 +58,12 @@ INSTALLED_APPS = [
     'dashboard.apps.DashboardConfig',
 ]
 
+# Live reload while developing: save a template, CSS or JS file and the open
+# browser tab refreshes itself. Dev only - the app, middleware and URL below all
+# switch themselves off when DEBUG is False, so production is untouched.
+if DEBUG:
+    INSTALLED_APPS += ['django_browser_reload']
+
 MIDDLEWARE = [
     # Stopwatch on every request. Outermost so it measures everything below it.
     'core.middleware.RequestTimingMiddleware',
@@ -73,6 +79,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Last in the list on purpose. Responses travel back up the list, so this runs
+# BEFORE GZipMiddleware compresses - it has to inject its script into plain HTML,
+# not into an already-gzipped body.
+if DEBUG:
+    MIDDLEWARE += ['django_browser_reload.middleware.BrowserReloadMiddleware']
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -87,6 +99,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.user_profile',
+                # Supplies base_template / ui_mode so each viewer gets the shell they chose.
+                'core.ui_mode.ui_mode',
             ],
         },
     },

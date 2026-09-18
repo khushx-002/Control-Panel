@@ -54,12 +54,46 @@ def _parse_body(request):
 @never_cache
 @group_required(*REALISE_GROUPS, json_response=False)
 def dashboard(request):
-    # never_cache: the territory_payload (person map + per-channel state whitelist) is
-    # baked into the HTML at render time, so the browser must re-fetch the page after a
-    # mapping change instead of serving a stale copy (else newly-assigned states like a
-    # freshly-added ECOM/NAGALAND wouldn't appear until a hard refresh).
-    return render(request, 'realise/dashboard.html', {
-        'sidebar_active': 'realise',
+    return _render_sales_dashboard(request, 'oils')
+
+
+@never_cache
+@group_required(*REALISE_GROUPS, json_response=False)
+def realise_dashboard(request):
+    """The product-level Realise table (targets vs actual per product).
+
+    It used to be slide 1 of the sales page, reachable from both the oils and the beverages
+    view - so the same table was sitting behind two pages. It is its own page now, and the
+    slide arrows are gone: every view has one address."""
+    return _render_sales_dashboard(request, 'oils', page='realise')
+
+
+@never_cache
+@group_required(*REALISE_GROUPS, json_response=False)
+def dashboard_beverages(request):
+    """The same dashboard, opened straight on the Beverages dataset.
+
+    Oils and Beverages used to share one page with an OILS/BEVERAGES toggle in the corner.
+    They are now two sidebar entries, each landing on its own dataset. It stays ONE template
+    on purpose - the beverages view, its KPI cards, drill table and exports all already live
+    in there, so splitting the file would have duplicated the lot for no gain."""
+    return _render_sales_dashboard(request, 'beverages')
+
+
+def _render_sales_dashboard(request, dataset, page='sales'):
+    # never_cache (on the callers): the territory_payload (person map + per-channel state
+    # whitelist) is baked into the HTML at render time, so the browser must re-fetch the
+    # page after a mapping change instead of serving a stale copy (else newly-assigned
+    # states like a freshly-added ECOM/NAGALAND wouldn't appear until a hard refresh).
+    active = ('realise_product' if page == 'realise'
+              else 'realise_beverages' if dataset == 'beverages' else 'realise')
+    # Two looks ship side by side; the viewer's own choice decides which renders.
+    from core.ui_mode import pick
+    return render(request, pick(request, 'realise/dashboard.html',
+                                         'realise/dashboard_legacy.html'), {
+        'sidebar_active': active,
+        'initial_dataset': dataset,
+        'initial_page': page,
         'territory_payload': json.dumps(services.get_territory_dashboard_payload()),
     })
 
@@ -2294,26 +2328,6 @@ def api_target_nodes(request):
         month, year = datetime.now().month, datetime.now().year
     return JsonResponse({'status': 'ok', 'month': month, 'year': year,
                          'data': services.get_target_nodes(month, year, request.GET.get('seg', ''))})
-
-
-@group_required(*REALISE_GROUPS, json_response=True)
-@require_http_methods(['GET', 'POST'])
-def api_flex_targets(request):
-    """Persisted 'Flex TGT' overrides for the Sales Channel drill table.
-    GET  ?seg=&month=&year=          -> {data: {row_key: value}}
-    POST {seg, month, year, row_key, value}  upserts one override (value null/'' clears it)."""
-    if request.method == 'POST':
-        body = _parse_body(request)
-        ok = services.save_flex_target(body.get('seg', ''), body.get('month'), body.get('year'),
-                                       body.get('row_key', ''), body.get('value'))
-        return JsonResponse({'status': 'ok' if ok else 'error'})
-    try:
-        month = int(request.GET.get('month', datetime.now().month))
-        year = int(request.GET.get('year', datetime.now().year))
-    except (ValueError, TypeError):
-        month, year = datetime.now().month, datetime.now().year
-    return JsonResponse({'status': 'ok', 'month': month, 'year': year,
-                         'data': services.get_flex_targets(request.GET.get('seg', ''), month, year)})
 
 
 @group_required(*REALISE_GROUPS, json_response=True)

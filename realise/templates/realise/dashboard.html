@@ -1,6 +1,6 @@
-{% extends "core/base.html" %}
+{% extends base_template %}
 {% load static %}
-{% block title %}Realise Dashboard — Jivo Group{% endblock %}
+{% block title %}Oils Sale — Jivo Group{% endblock %}
 
 {% block extra_styles %}
 <style>
@@ -218,22 +218,6 @@ td.ccell{font-weight:500}
 /* Flexible View: editable "Flex TGT" + computed "Dent" columns, sitting right after
    Target L. Hidden until the header View selector is set to Flexible. Values are
    temporary / client-side scratch (never persisted to the server). */
-.cd-table .cd-flexcol{display:none}
-.cd-table.cd-flex-on .cd-flexcol{display:table-cell}
-/* `input.cd-flex-input` (and the .cd-table prefix) is specific enough to beat the
-   generic ".modal-box input" rule above (font-size:18px; letter-spacing:8px;
-   text-align:center) which otherwise blows the Flex TGT value up. Reset those here. */
-.cd-table input.cd-flex-input{width:100%;max-width:108px;box-sizing:border-box;margin:0;padding:4px 7px;border:1px solid #cbd2d9;border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:normal;text-align:right;color:#1d4ed8;background:#fff;outline:none}
-.cd-table input.cd-flex-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-glow)}
-/* Trim the number-spinner so a short width still shows the value cleanly. */
-.cd-flex-input::-webkit-outer-spin-button,.cd-flex-input::-webkit-inner-spin-button{margin-left:2px}
-.cd-table tr.cd-total input.cd-flex-input{color:var(--rz-indigo-deep);background:#fff;border-color:var(--rz-total-brd)}
-.cd-table tr.cd-total input.cd-flex-input::placeholder{color:var(--rz-faint)}
-.cd-dent{font-weight:800}
-.cd-dent.cd-dent-pos{color:#dc2626}   /* dent (target reduced) shown in red */
-.cd-dent.cd-dent-neg{color:#16a34a} /* flex above target → dent green */
-.cd-table tr.cd-total .cd-dent.cd-dent-pos{color:var(--rz-neg)}
-.cd-table tr.cd-total .cd-dent.cd-dent-neg{color:var(--rz-pos)}
 /* Done-L / Order-in-Hand cells drill to the underlying documents */
 #cdBody td.cd-doc-cell:not(.cd-doc-empty){cursor:pointer;color:#1d4ed8}
 #cdBody td.cd-doc-cell:not(.cd-doc-empty):hover{background:rgba(37,99,235,.1);text-decoration:underline}
@@ -324,20 +308,35 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
    (Fetch / Today's Sales / Export Excel / Update Targets) have no label, so the row is
    bottom-aligned - that lines their tops up with the inputs, not with the small captions. */
 .sc2-drillbar{display:flex;align-items:flex-end;gap:9px;flex-wrap:nowrap}
+/* The page title sits in the toolbar itself, at its full 32px - the same size it
+   had as a standalone heading. It is bottom-aligned with the fields and followed
+   by a hairline, so the name reads apart from the controls beside it. */
+.sc2-drillbar .sc2-title-inline{
+  flex:0 0 auto;display:flex;align-items:flex-end;white-space:nowrap;
+  margin:0 auto 0 0;padding:0;align-self:stretch;
+}
+.sc2-drillbar .sc2-title-inline h2{line-height:1;padding-bottom:3px}
+@media (max-width:1250px){
+  .sc2-drillbar{flex-wrap:wrap}
+  .sc2-drillbar .sc2-title-inline{width:100%;margin-right:0}
+}
 .sc2-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .sc2-drillbar .com-drill{flex-direction:column;align-items:stretch;gap:4px}
 /* Let the fields give way rather than spill off the edge when the window is narrow. */
 .sc2-drillbar input[type=date],.sc2-drillbar select{min-width:0}
 @media (max-width:1180px){.sc2-drillbar{flex-wrap:wrap;align-items:flex-end}}
 /* Update Targets: pinned far-right + sized to match the Export Excel button (sc2-today-btn) */
-.sc2-drillbar .sc2-targets-right{margin-left:auto;padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:.3px;border-radius:10px;gap:6px}
+/* No margin-left:auto any more. That pushed Update Targets to the far edge of
+   the bar, leaving a wide empty stretch after Export CSV; it now follows the
+   other controls on the bar's normal 9px gap. */
+.sc2-drillbar .sc2-targets-right{padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:.3px;border-radius:10px;gap:6px}
 /* Wrap instead of scroll: overflow-x:auto here forces overflow-y to clip too, which cut off
    the Drill-Order dropdown that opens below the bar. Wrapping lets it overflow freely. */
 .sc2-period-bar{padding-bottom:3px}
 .sc2-drillbar label{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#64748b}
 .sc2-drillbar select{min-width:0;width:auto;background:#fff;border:1px solid #d9e5ee;color:#1f2937;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;outline:none}
 .sc2-drillbar select:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-glow)}
-.sc2-drillbar input[type=date]{background:#fff;border:1px solid #d9e5ee;color:#1f2937;padding:7px 10px;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;outline:none}
+.sc2-drillbar input[type=date]{width:124px;background:#fff;border:1px solid #d9e5ee;color:#1f2937;padding:7px 8px;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;outline:none}
 .sc2-drillbar input[type=date]:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-glow)}
 .sc2-period-bar{margin-bottom:0;padding-bottom:8px;border-bottom:1px solid #e6eef5}
 /* 4 cards: Target / Done / OIH / Bal. The three realise figures that used to have
@@ -355,12 +354,18 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
      --k-ink   the dark tint the big figure is written in
      --k-tint  the soft fill behind the icon, the foot and the sparkline      */
 .sc2-kpi{position:relative;display:flex;flex-direction:column;padding:0;overflow:hidden;
-  background:var(--rz-card);border:1px solid var(--rz-card-brd);border-radius:16px;
+  background:var(--rz-card);border-radius:16px;
+  /* BOTH: a light hairline the whole way round, AND the left edge kept as the card's
+     colour marker - only light and thin now, not the old 4px slab. The hairline used to be
+     a near-invisible grey that showed up only on hover, which is why a border seemed to
+     "appear" on the right and bottom. Both are tinted from the card's own accent, the left
+     a little stronger so it still reads as the marker. Plain borders rather than a pseudo
+     element, so the 16px radius curves them properly at every corner. */
+  border:1px solid color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 30%, #fff);
+  border-left:3px solid color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 55%, #fff);
   box-shadow:var(--rz-shadow);min-width:0}
-.sc2-kpi::before{content:"";position:absolute;top:0;left:0;width:52%;height:4px;
-  background:var(--k-acc,var(--rz-acc-indigo));border-radius:16px 0 0 0}
-.sc2-kpi::after{content:"";position:absolute;top:0;bottom:0;left:0;width:4px;
-  background:var(--k-acc,var(--rz-acc-indigo))}
+/* The bold half-width bar across the top is gone on request. The left edge stays, as a
+   light 3px border on the card itself (see .sc2-kpi above). */
 .sc2-kpi-main{flex:1;padding:14px 16px 10px}
 .sc2-kpi-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
 .sc2-kpi-ic{width:28px;height:28px;flex-shrink:0;border-radius:9px;display:flex;align-items:center;
@@ -399,7 +404,9 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
    sit dead while the other three lifted, which read like it was broken. The pointer cursor
    stays on the clickable ones only, so a card that opens nothing never pretends it does. */
 .sc2-kpi{transition:box-shadow .15s,transform .15s,border-color .15s}
-.sc2-kpi:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);border-color:#9bc0f5}
+.sc2-kpi:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);
+  border-color:color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 55%, #fff);
+  border-left-color:color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 80%, #fff)}
 .sc2-kpi.sc2-kpi-click{cursor:pointer}
 .oih-kpi-summary{display:flex;gap:12px;margin:14px 0 8px}
 .oih-kpi-box{flex:1;background:#f1f5fb;border:1px solid #dbe3ec;border-radius:10px;padding:10px 14px}
@@ -505,13 +512,6 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 .sc2-drillrow.com-l1 .sc2-drillname,.sc2-drillrow.com-l2 .sc2-drillname{font-weight:600}
 /* Flexible View columns (slide-2 drill + commodity grids): editable Flex TGT input
    and computed Dent (Target − Flex). Shown only when VIEW = Flexible. Scratch values. */
-.sc2-drillrow .sc2-flex-input{width:100%;max-width:94px;box-sizing:border-box;margin:0;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:normal;text-align:right;color:#1d4ed8;background:#fff;outline:none}
-.sc2-drillrow .sc2-flex-input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.18)}
-.sc2-drillval.cdent.sc2-dent-pos{color:#dc2626}
-.sc2-drillval.cdent.sc2-dent-neg{color:#16a34a}
-.sc2-drillrow.sc2-state-total .sc2-flex-input{color:var(--rz-indigo-deep);background:#fff;border-color:var(--rz-total-brd)}
-.sc2-drillrow.sc2-state-total .cdent.sc2-dent-pos{color:var(--rz-neg)}
-.sc2-drillrow.sc2-state-total .cdent.sc2-dent-neg{color:var(--rz-pos)}
 .com-drill{display:flex;align-items:center;gap:10px}
 .com-drill-box{position:relative}
 .com-drill-btn{display:inline-flex;align-items:center;gap:10px;min-width:190px;justify-content:space-between;background:#fff;border:1px solid #d9e5ee;color:var(--blue,#2563eb);font-weight:700;font-size:12px;padding:8px 10px;border-radius:10px;cursor:pointer;font-family:inherit}
@@ -565,15 +565,6 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     <h1>Realise Dashboard <span id="procName">REPORT_SALES_ANALYSIS</span> <span class="vbadge">v11</span></h1>
   </div>
   <div class="header-actions">
-    <div class="ds-toggle" role="group" aria-label="Dataset">
-      <button type="button" class="ds-btn ds-oils active" onclick="switchDataset('oils')">OILS</button>
-      <button type="button" class="ds-btn ds-bev" onclick="switchDataset('beverages')">BEVERAGES</button>
-    </div>
-    <div class="slide-nav" aria-label="Dashboard slide navigation">
-      <button class="slide-btn" id="slidePrevBtn" onclick="prevSlide()" aria-label="Previous slide">&#8249;</button>
-      <div class="slide-indicator" id="slideIndicator">Slide 1 / 2</div>
-      <button class="slide-btn" id="slideNextBtn" onclick="nextSlide()" aria-label="Next slide">&#8250;</button>
-    </div>
     <div class="status-pill"><span class="dot dot-red" id="sDot"></span><span id="sTxt">Checking...</span></div>
   </div>
 </div>
@@ -665,29 +656,13 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   </section>
   <section class="rd-slide" id="slideTwo">
     <div class="sc2-wrap">
-      <div class="sc2-head">
-        {% comment %}
-          Title removed on request. .sc2-actions carries margin-left:auto so the controls
-          stay right-aligned now that there is nothing on the left to push them over.
-        {% endcomment %}
-        <div class="sc2-actions">
-          <div class="ds-toggle" role="group" aria-label="Dataset">
-            <button type="button" class="ds-btn ds-oils active" onclick="switchDataset('oils')">OILS</button>
-            <button type="button" class="ds-btn ds-bev" onclick="switchDataset('beverages')">BEVERAGES</button>
-          </div>
-          <div class="sc2-nav" aria-label="Slide navigation">
-            <button class="slide-btn" onclick="nextSlide()" aria-label="Next slide">&#8250;</button>
-            <div class="slide-indicator">Slide 1 / 2</div>
-          </div>
-          {% comment %}
-            Live pill removed. It was only ever a status light with a pause switch
-            attached; live is now permanently on, so there is nothing to report or
-            toggle. arRenderUpdated() already no-ops when these elements are absent.
-          {% endcomment %}
-        </div>
-      </div>
-      <!-- Every control on one row, above the KPI cards. -->
+      {% comment %}
+        Title and every control share one row. The title is just another flex item
+        at the start of the bar, so the fields keep their own alignment and
+        "Update Targets" keeps its margin-left:auto push to the far right.
+      {% endcomment %}
       <div class="sc2-drillbar sc2-period-bar">
+        <div class="sc2-title sc2-title-inline"><h2>Oils Sale</h2></div>
         <span id="sc2RangeCtl" style="display:contents">
           <div class="sc2-fld"><label for="sc2From">From</label>
             <input type="date" id="sc2From"></div>
@@ -719,7 +694,10 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
             <div class="com-drill-panel" id="sc2DynPanel">
               <div class="com-dp-head"><a id="sc2DynSelAll">Select All</a><a id="sc2DynClrAll">Clear All</a></div>
               <div class="com-dp-list" id="sc2DynList"></div>
-              <div class="com-dp-foot"><button type="button" id="sc2DynApply">Apply</button></div>
+              {% comment %}
+                Apply removed: ticking a level applies it at once, so the button was a
+                second click for a decision already made.
+              {% endcomment %}
             </div>
           </div>
         </div>
@@ -736,14 +714,6 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
             </div>
           </div>
         </div>
-        <button type="button" class="sc2-today-btn" id="sc2TodayBtn" onclick="openTodaySales()" title="Today's Premium &amp; Commodity sales (litres)">
-          <i class="ic ic-calendar-check"></i>Today's Sales
-        </button>
-        <div class="sc2-fld"><label for="cdView">View</label>
-          <select id="cdView" onchange="onCdViewChange()" title="Channel card view — Flexible adds editable Flex TGT / Dent columns">
-            <option value="fixed">Fixed View</option>
-            <option value="flex">Flexible View</option>
-          </select></div>
         <button type="button" class="sc2-today-btn" id="sc2RawExportBtn" onclick="exportMainRawCSV()" title="Export the raw data behind this view (Excel/CSV)">
           <i class="ic ic-download"></i>Export Excel
         </button>
@@ -816,6 +786,22 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
           realise line - see sc2KpiDoneRealise in dashboard.js.
         {% endcomment %}
       </div>
+      {% comment %}
+        Today Sale: the same three figures the "Today's Sales" popup shows, laid across
+        the page so they can be read without opening anything. Both are filled from one
+        cached fetch (fetchTodaySales), so putting this here costs no extra SAP call.
+      {% endcomment %}
+      <section class="sc2-today-panel">
+        <div class="sc2-today-panel-head">
+          <h3>Today Sale</h3>
+          <span class="sc2-today-panel-date" id="sc2TodayBoxDate">&mdash;</span>
+        </div>
+        <div class="sc2-today-panel-cards">
+          <div class="sc2-tcard prem"><span class="tl">Premium</span><span class="tv" id="sc2TodayPrem">&mdash;</span></div>
+          <div class="sc2-tcard comm"><span class="tl">Commodity</span><span class="tv" id="sc2TodayComm">&mdash;</span></div>
+          <div class="sc2-tcard total"><span class="tl">Total</span><span class="tv" id="sc2TodayTotal">&mdash;</span></div>
+        </div>
+      </section>
       <!-- Where the litres go: the same channel rows slide two already has,
            summed per state and shaded on the map. Plain SVG - see state_map.js. -->
       <section class="rsm-card">
@@ -825,11 +811,16 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
           </div>
           <span class="rsm-chip" id="rsmChip">No data yet</span>
         </div>
+        <!-- One button per channel card below, plus All. Filled by state_map.js
+             from CHANNEL_BLOCKS so it can never drift from the cards. -->
+        <div class="rsm-tabs" id="rsmTabs" role="tablist" aria-label="Channel"></div>
         <div class="rsm-body">
           <div class="rsm-map" id="rsmWrap" data-geo-url="{% static 'core/geo/india_states.geojson' %}">
             <div class="rsm-empty" id="rsmEmpty">Fetch a date range and the map fills in.</div>
             <svg class="rsm-svg" id="rsmSvg" viewBox="0 0 600 680" role="img"
                  aria-label="India map shaded by litres sold per state" hidden></svg>
+            <div class="rsm-stats" id="rsmStats"></div>
+            <div class="rsm-zonebox" id="rsmZones"></div>
             <div class="rsm-scale" id="rsmScale" hidden><span>Less</span><i></i><span>More</span></div>
             <div class="rsm-tip" id="rsmTip"></div>
           </div>
@@ -855,12 +846,26 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
      simply shrinks it to nothing. So the scrolling moves up one level: the
      whole slide scrolls, and the channel grid sizes to its content. Delete
      these three rules to put the old behaviour back exactly. */
+  /* Channel cards removed on request - the map, its channel buttons and the
+     click-to-drill panel cover the same ground.
+
+     The #channelGrid element itself STAYS in the DOM on purpose. renderSlideTwo()
+     opens with `if(!grid) return;`, and the KPI strip (Target / Done / OIH / Bal)
+     is computed inside that same pass - deleting the element would blank the KPIs
+     and stop the map refreshing with them. Hiding it costs one wasted string
+     build per render and nothing else. Delete this one rule to bring the cards back. */
+  #slideTwo #channelGrid{display:none}
+
   #slideTwo .sc2-wrap{overflow:auto}
   #slideTwo .sc2-grid{overflow:visible;flex:0 0 auto}
   #slideTwo .rsm-card{flex:0 0 auto}
+  /* .sc2-wrap is a flex COLUMN, so its children shrink by default - which squashed the
+     Today Sale panel down to a sliver with its cards clipped out of sight. Same guard the
+     map card above already needed: keep my own height, do not give way. */
+  #slideTwo .sc2-today-panel{flex:0 0 auto}
 
   .rsm-card{
-    background:#fff;border:1px solid #dcebe1;border-radius:14px;margin-bottom:14px;
+    background:#fff;border:1px solid #dcebe1;border-radius:14px;margin:0;
     box-shadow:0 1px 2px rgba(21,94,48,.05),0 8px 24px rgba(21,94,48,.06);overflow:hidden;
   }
   .rsm-head{
@@ -871,6 +876,33 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   .rsm-chip{
     font-size:11.5px;font-weight:700;color:#155e30;background:#e8f6ed;
     border:1px solid #c3e4cf;padding:5px 12px;border-radius:999px;white-space:nowrap;
+  }
+  /* Channel picker. Sits between the head and the map so it reads as "which of
+     the cards below am I looking at", which is exactly what it selects. */
+  .rsm-tabs{
+    display:flex;flex-wrap:wrap;gap:6px;padding:11px 18px 12px;
+    border-bottom:1px solid #e6f1ea;background:#fbfdfc;
+  }
+  .rsm-tab{
+    border:1px solid #dcebe1;background:#fff;color:#4a6154;font-family:inherit;
+    font-size:11.5px;font-weight:700;letter-spacing:.02em;padding:6px 13px;
+    border-radius:999px;cursor:pointer;white-space:nowrap;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .rsm-tab:hover{background:#f1f9f4;border-color:#a9d6bc;color:#155e30}
+  .rsm-tab.is-on{background:#155e30;border-color:#155e30;color:#fff}
+  .rsm-tab:focus-visible{outline:2px solid #155e30;outline-offset:2px}
+  .rsm-tab b{font-weight:800;margin-left:6px;opacity:.75;font-variant-numeric:tabular-nums}
+  .rsm-tab.is-on b{opacity:.85}
+  /* base.html styles every <button> with a ten-pseudo-class selector (0-10-1),
+     which outranks a plain .rsm-tab and repainted these chips in the shared
+     indigo. Prefixing with the container's id lifts them to 1-1-0 so the light
+     green above actually lands. */
+  #rsmTabs .rsm-tab{border:1px solid #c3e4cf}
+  #rsmTabs .rsm-tab:hover{border-color:#8ecaa9}
+  #rsmTabs .rsm-tab.is-on{border-color:#155e30}
+  .rsm-note{
+    padding:9px 18px 0;font-size:11px;color:#8a9b91;line-height:1.6;
   }
   .rsm-body{display:grid;grid-template-columns:1fr 250px}
   .rsm-map{position:relative;padding:8px 8px 12px;min-height:400px}
@@ -898,6 +930,52 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   .rsm-empty{
     display:flex;align-items:center;justify-content:center;min-height:380px;
     color:#6f8578;font-size:12.5px;text-align:center;padding:0 24px;line-height:1.7;
+  }
+  /* ---- the read-out in the map's empty margins ----------------------------
+     India is tall and narrow inside a 600x680 viewBox, so once the SVG is height
+     capped there is roughly 250-300px of dead white either side. Two panels sit
+     in it. pointer-events:none so they never block a state hover. */
+  .rsm-stats,.rsm-zonebox{
+    position:absolute;left:14px;z-index:4;width:216px;max-width:38%;pointer-events:none;
+  }
+  .rsm-stats{top:14px}
+  .rsm-zonebox{bottom:34px}
+  .rsm-mini{
+    background:#fff;border:1px solid #dcebe1;border-radius:12px;padding:11px 13px 12px;
+    box-shadow:0 1px 2px rgba(21,94,48,.05),0 6px 18px rgba(21,94,48,.06);
+  }
+  .rsm-mini h4{
+    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+    font-size:10px;font-weight:800;color:#8fa398;letter-spacing:.05em;
+    padding-bottom:7px;border-bottom:1px solid #eef5f1;margin-bottom:6px;
+  }
+  .rsm-mini h4 em{
+    font-style:normal;font-size:11.5px;font-weight:800;color:#155e30;
+    font-variant-numeric:tabular-nums;letter-spacing:0;
+  }
+  .rsm-mini-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;padding:4px 0}
+  .rsm-mini-n{font-size:11.5px;font-weight:600;color:#14301f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsm-mini-v{font-size:11.5px;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums}
+  .rsm-mini-v.up{color:#15803d}
+  .rsm-mini-v.down{color:#b45309}
+  .rsm-mini-bar{grid-column:1/-1;height:3px;border-radius:999px;background:#eef5f1;overflow:hidden}
+  .rsm-mini-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#60a5fa,#1d4ed8)}
+  .rsm-mini-bar.wide{grid-column:auto;flex:1;height:5px}
+  /* delivered-so-far line above the pending list */
+  .rsm-fill{display:flex;align-items:center;gap:8px;padding:2px 0 7px;border-bottom:1px solid #f3f8f5;margin-bottom:4px}
+  .rsm-fill>span:first-child{font-size:10.5px;font-weight:700;color:#6f8578;white-space:nowrap}
+  .rsm-fill .rsm-mini-bar i{background:linear-gradient(90deg,#4f9c6b,#155e30)}
+  .rsm-mini-lbl{
+    font-size:9.5px;font-weight:800;color:#8fa398;letter-spacing:.05em;
+    margin:6px 0 1px;
+  }
+  .rsm-mini-more{font-size:10px;color:#8fa398;margin-top:5px}
+  .rsm-mini-none{font-size:11.5px;color:#8fa398;line-height:1.6;padding:4px 0 2px}
+  /* Below ~1150px the side margins are gone - stack the panels instead of
+     letting them sit on top of the map. */
+  @media (max-width:1150px){
+    .rsm-stats,.rsm-zonebox{position:static;width:auto;max-width:none;margin:0 0 10px}
+    .rsm-zonebox{margin-bottom:0}
   }
   .rsm-scale{display:flex;align-items:center;gap:9px;font-size:11px;color:#6f8578;padding:0 10px 2px}
   .rsm-scale i{flex:1;max-width:190px;height:7px;border-radius:999px;
@@ -937,7 +1015,7 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   }
   @keyframes rsmpFade{from{opacity:0}to{opacity:1}}
   .rsmp{
-    background:#fff;border-radius:16px;width:min(760px,100%);max-height:86vh;
+    background:#fff;border-radius:16px;width:min(1180px,100%);max-height:88vh;
     display:flex;flex-direction:column;overflow:hidden;
     box-shadow:0 24px 60px rgba(14,38,24,.3);animation:rsmpUp .22s cubic-bezier(.2,.7,.3,1);
   }
@@ -955,6 +1033,22 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     transition:background .15s,color .15s,border-color .15s;
   }
   .rsmp-x:hover{background:#e8f6ed;color:#155e30;border-color:#a9d6bc}
+  .rsmp-acts{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .rsmp-full{
+    border:1px solid #d8e9df;background:#fff;color:#4a6154;width:30px;height:30px;
+    border-radius:9px;font-size:14px;line-height:1;cursor:pointer;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .rsmp-full:hover{background:#e8f6ed;color:#155e30;border-color:#a9d6bc}
+  .rsmp-full[aria-pressed="true"]{background:#155e30;border-color:#155e30;color:#fff}
+  /* Full screen: the card gives up its rounding and fills the backdrop. */
+  .rsmp.is-full{
+    width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;
+  }
+  .rsmp-back:has(.rsmp.is-full){padding:0}
+  /* A row that can open says so - pointer plus a tint on hover. */
+  .rsmp-r.can-open{cursor:pointer}
+  .rsmp-r.can-open:hover td{background:#e8f6ed}
   .rsmp-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e6f1ea}
   .rsmp-kpis>div{background:#fff;padding:13px 20px}
   .rsmp-kpis span{display:block;font-size:10.5px;font-weight:800;color:#8fa398;letter-spacing:.04em}
@@ -963,25 +1057,104 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     font-variant-numeric:tabular-nums;
   }
   .rsmp-kpis b small{font-size:11.5px;font-weight:700;color:#8fa398;margin-left:2px}
+  /* Which breakdowns to show. Above the results, because it decides them. */
+  .rsmp-pick{padding:12px 20px 4px;border-bottom:1px solid #eef5f1;background:#fbfdfc}
+  .rsmp-pick-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;
+  }
+  .rsmp-pick-head>span{font-size:10.5px;font-weight:800;color:#8fa398;letter-spacing:.05em}
+  .rsmp-pick-head div{display:flex;gap:4px}
+  .rsmp-pick-head button{
+    border:0;background:none;color:#155e30;font-family:inherit;font-size:11.5px;
+    font-weight:700;cursor:pointer;padding:3px 6px;border-radius:6px;
+  }
+  .rsmp-pick-head button:hover:not(:disabled){background:#e8f6ed;text-decoration:underline}
+  .rsmp-pick-head button:disabled{color:#b7c6bd;cursor:default}
+  .rsmp-pick-list{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));
+    gap:2px 10px;padding-bottom:10px;
+  }
+  .rsmp-pick-item{
+    display:flex;align-items:flex-start;gap:9px;padding:6px 8px;border-radius:8px;
+    cursor:pointer;transition:background .12s;
+  }
+  .rsmp-pick-item:hover{background:#f1f9f4}
+  .rsmp-pick-item input{margin-top:2px;accent-color:#155e30;cursor:pointer;flex:0 0 auto}
+  .rsmp-pick-item span{display:block;min-width:0}
+  .rsmp-pick-item b{
+    display:block;font-size:11.5px;font-weight:700;color:#14301f;letter-spacing:.02em;
+  }
+  .rsmp-pick-item i{display:block;font-style:normal;font-size:10.5px;color:#8fa398;margin-top:1px}
+  .rsmp-pick-item:has(input:focus-visible){outline:2px solid #155e30;outline-offset:1px}
+  /* A ticked breakdown is tinted, so the chosen set reads at a glance. The drill
+     order is not numbered here - the table header above the rows spells it out
+     in full, e.g. "PRODUCT > ITEM NAME". */
+  .rsmp-pick-item.is-on{background:#e8f6ed}
+  .rsmp-none{font-size:12.5px;color:#8fa398;padding:22px 0 8px;text-align:center;line-height:1.7}
   .rsmp-body{overflow-y:auto;padding:6px 20px 20px}
   .rsmp-block{margin-top:16px}
   .rsmp-block h4{
     font-size:11px;font-weight:800;color:#6f8578;letter-spacing:.05em;
     padding-bottom:7px;border-bottom:1px solid #eef5f1;
   }
-  .rsmp-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-  .rsmp-tbl td{padding:8px 0;border-bottom:1px solid #f3f8f5;vertical-align:middle}
-  .rsmp-tbl tr:last-child td{border-bottom:0}
-  .rsmp-n{color:#14301f;font-weight:600;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .rsmp-v{text-align:right;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:14px!important}
-  .rsmp-v small{font-size:9.5px;font-weight:700;color:#8fa398;margin-left:3px}
-  .rsmp-m{text-align:right;color:#4a6154;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:14px!important}
-  .rsmp-b{width:26%;padding-left:14px!important}
-  .rsmp-b i{display:block;height:5px;border-radius:999px;background:linear-gradient(90deg,#4f9c6b,#155e30)}
-  .rsmp-p{text-align:right;color:#8fa398;font-variant-numeric:tabular-nums;width:38px;padding-left:8px!important}
+  /* Same column set as the channel cards below - Target / Done / Order in Hand /
+     Bal with their realise beside each - so a state opened from the map reads
+     exactly like the table the reader already knows. Its own horizontal scroller
+     because nine columns will not fit a phone. */
+  .rsmp-scroll{overflow-x:auto;margin-top:6px}
+  .rsmp-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
+  .rsmp-tbl thead th{
+    position:sticky;top:0;background:#f4faf6;color:#6f8578;text-align:right;
+    font-size:10px;font-weight:800;letter-spacing:.04em;white-space:nowrap;
+    padding:8px 10px;border-bottom:1px solid #dcebe1;
+  }
+  .rsmp-tbl thead th.rsmp-h-n{text-align:left}
+  .rsmp-tbl td{padding:8px 10px;border-bottom:1px solid #f3f8f5;vertical-align:middle;white-space:nowrap}
+  .rsmp-tbl tbody tr:hover td{background:#f7fcf9}
+  .rsmp-n{color:#14301f;font-weight:700;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+  .rsmp-num{text-align:right;color:#4a6154;font-variant-numeric:tabular-nums}
+  .rsmp-done{font-weight:800;color:#155e30}
+  .rsmp-oih{font-weight:700;color:#1d4ed8}
+  .rsmp-good{font-weight:800;color:#15803d}
+  .rsmp-bad{font-weight:800;color:#dc2626}
+  /* ---- one drill row -----------------------------------------------------
+     The twirl, the level tag and the name sit on one line; padding-left on the
+     inner span does the indenting so the cell's own padding stays put. */
+  .rsmp-cell{display:inline-flex;align-items:center;gap:7px;min-width:0}
+  .rsmp-tw{
+    width:17px;height:17px;flex:0 0 auto;display:inline-flex;
+    align-items:center;justify-content:center;
+    color:#6f8578;font-size:11px;line-height:1;border-radius:4px;
+    transition:transform .15s,color .15s;
+  }
+  .rsmp-r.can-open:hover .rsmp-tw{color:#155e30}
+  .rsmp-tw.is-open{transform:rotate(90deg);color:#155e30}
+  .rsmp-tw-gap{width:17px;flex:0 0 auto}
+  .rsmp-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Level tag - one colour per dimension, so a deep row still says what it is. */
+  .rsmp-tag{
+    flex:0 0 auto;font-size:9px;font-weight:800;letter-spacing:.05em;
+    padding:2px 6px;border-radius:5px;white-space:nowrap;
+    background:#eef2f7;color:#5b6b7c;
+  }
+  .rsmp-tag-channel{background:#e8f6ed;color:#155e30}
+  .rsmp-tag-product{background:#e6f4ea;color:#166534}
+  .rsmp-tag-item{background:#ede9fe;color:#5b21b6}
+  .rsmp-tag-customer{background:#fef3c7;color:#92400e}
+  .rsmp-tag-person{background:#dbeafe;color:#1e40af}
+  .rsmp-tag-owner{background:#ffe4e6;color:#9f1239}
+  .rsmp-tag-type{background:#f1f5f9;color:#475569}
+  /* Each level a shade further in, so depth is readable without counting. */
+  .rsmp-d1 td{background:#fbfdfc}
+  .rsmp-d2 td{background:#f7fbf9}
+  .rsmp-d3 td{background:#f3f9f5}
+  .rsmp-d4 td,.rsmp-d5 td{background:#eff7f2}
+  .rsmp-total td{
+    background:#f4faf6;font-weight:800;color:#14301f;
+    border-top:2px solid #155e30;border-bottom:0;
+  }
   @media (max-width:640px){
     .rsmp-kpis{grid-template-columns:1fr}
-    .rsmp-b,.rsmp-m{display:none}
   }
   @media (prefers-reduced-motion:reduce){
     .rsmp-back,.rsmp{animation:none}
@@ -1034,16 +1207,29 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   .sc2-today-btn{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:800;letter-spacing:.3px;font-family:inherit;cursor:pointer;transition:background .15s,box-shadow .15s,transform .15s}
   .sc2-today-btn:hover{background:#e0e7ff;box-shadow:0 4px 12px rgba(79,70,229,.18);transform:translateY(-1px)}
   .sc2-today-btn .ic{font-size:16px}
-  /* Today's Sales popup (small, centered). */
-  .sc2-today-box{width:360px;max-width:92vw;padding:0;overflow:hidden;text-align:left}
-  .sc2-today-body{padding:18px 22px;display:flex;flex-direction:column;gap:10px}
-  .sc2-today-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
-  .sc2-today-row .stl{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#64748b}
-  .sc2-today-row .sv{font-size:22px;font-weight:900;color:#111827;font-variant-numeric:tabular-nums;font-family:'CPNum',system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
-  .sc2-today-row.prem{border-color:#bfdbfe;background:#eff6ff}
-  .sc2-today-row.comm{border-color:#fde68a;background:#fffbeb}
-  .sc2-today-row.total{border-color:#cbd5e1;background:#f1f5f9}
-  .sc2-today-msg{padding:10px 0;font-size:13px;color:#64748b;text-align:center}
+  /* Today Sale panel - Premium / Commodity / Total for today, side by side under the
+     KPI strip. This is the only place those three figures appear now; the button and
+     popup that used to repeat them have been removed. */
+  /* No bottom margin. .sc2-wrap is a flex column with gap:10px, so a margin here
+     stacked on top of that gap and made the space below Today Sale 24px while
+     every other gap stayed 10px. The flex gap alone now spaces all of them. */
+  .sc2-today-panel{background:var(--rz-card);border:1px solid var(--rz-card-brd);border-radius:14px;
+    box-shadow:var(--rz-shadow);padding:14px 16px;margin:0}
+  .sc2-today-panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .sc2-today-panel-head h3{font-family:var(--font-display,Georgia,serif);font-weight:400;
+    font-size:18px;color:#14301f;margin:0}
+  .sc2-today-panel-date{font-size:11.5px;font-weight:700;color:var(--rz-muted)}
+  /* Three across; they stack only when the window is genuinely narrow. */
+  .sc2-today-panel-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  @media (max-width:760px){.sc2-today-panel-cards{grid-template-columns:1fr}}
+  .sc2-tcard{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;min-width:0}
+  .sc2-tcard .tl{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#64748b}
+  .sc2-tcard .tv{font-size:22px;font-weight:900;color:#111827;font-variant-numeric:tabular-nums;
+    font-family:'CPNum',system-ui,-apple-system,"Segoe UI",Arial,sans-serif;white-space:nowrap}
+  .sc2-tcard.prem{border-color:#bfdbfe;background:#eff6ff}
+  .sc2-tcard.comm{border-color:#fde68a;background:#fffbeb}
+  .sc2-tcard.total{border-color:#cbd5e1;background:#f1f5f9}
   .bev-view-sel{display:flex;align-items:center;gap:6px;margin-left:18px;padding-left:18px;border-left:1px solid var(--border)}
   .bev-view-sel label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
   .bev-view-sel select{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;outline:none;cursor:pointer}
@@ -1252,14 +1438,6 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   <div class="sc2-head bev-head">
     <div class="sc2-title"><h2>Beverages</h2></div>
     <div class="sc2-actions">
-      <div class="ds-toggle" role="group" aria-label="Dataset">
-        <button type="button" class="ds-btn ds-oils" onclick="switchDataset('oils')">OILS</button>
-        <button type="button" class="ds-btn ds-bev active" onclick="switchDataset('beverages')">BEVERAGES</button>
-      </div>
-      <div class="sc2-nav" aria-label="Slide navigation">
-        <button class="slide-btn" onclick="nextSlide()" aria-label="Next slide">&#8250;</button>
-        <div class="slide-indicator">Slide 1 / 2</div>
-      </div>
       <button type="button" class="btn btn-ghost" onclick="exportBeveragesCSV()">&#11015; Export CSV</button>
     </div>
   </div>
@@ -1285,7 +1463,11 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
         <input type="number" id="bevMonths" min="1" max="120" step="1" value="3" placeholder="e.g. 6" style="width:110px" onkeydown="if(event.key==='Enter')loadBeverages()">
       </div>
     </div>
-    <button class="btn btn-primary" id="bevFetchBtn" onclick="loadBeverages()">&#9654; Fetch Data</button>
+    {% comment %}
+      Fetch button removed: changing From/To (or the months box) runs the query by
+      itself now - see wireBeveragesAutoFetch() in dashboard.js. loadBeverages()
+      already guards on the button existing, so nothing else needed changing.
+    {% endcomment %}
     <div class="sep"></div>
     <div class="cg"><label>Drill Order</label>
       <div class="com-drill">
@@ -1521,20 +1703,6 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   </div>
 </div>
 
-<!-- OILS Slide 2: Today's Premium vs Commodity sales (litres) -->
-<div class="modal-overlay" id="sc2TodayModal" onclick="if(event.target===this)closeTodaySales()">
-  <div class="modal-box sc2-today-box">
-    <div class="cd-header">
-      <div>
-        <h3>Today's Sales</h3>
-        <p id="sc2TodaySub"></p>
-      </div>
-      <button type="button" class="bev-sold-close" onclick="closeTodaySales()" aria-label="Close">&times;</button>
-    </div>
-    <div class="sc2-today-body" id="sc2TodayBody"></div>
-  </div>
-</div>
-
 <!-- OILS Month-Wise: per-channel States × Months pivot (click a value → customers) -->
 <div class="modal-overlay" id="sc2MonthlyModal" onclick="if(event.target===this)closeSc2Monthly()">
   <div class="modal-box bev-sold-box">
@@ -1676,7 +1844,7 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
       <table class="cd-table">
         <thead><tr>
           <th id="cdFirstCol">State</th>
-          <th>Target L</th><th class="cd-flexcol">Flex TGT</th><th class="cd-flexcol">Dent</th><th>Tgt Realise</th><th>Done L</th><th>Done Realise</th><th>Order in Hand</th><th>OIH Realise</th><th>Bal</th><th>Bal Realise</th>
+          <th>Target L</th><th>Tgt Realise</th><th>Done L</th><th>Done Realise</th><th>Order in Hand</th><th>OIH Realise</th><th>Bal</th><th>Bal Realise</th>
         </tr></thead>
         <tbody id="cdBody"></tbody>
       </table>
@@ -1787,7 +1955,13 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 <script>
 window.__CP = {
   loginUser: {{ login_user_json|safe }},
-  territory: {{ territory_payload|safe }}
+  territory: {{ territory_payload|safe }},
+  /* Which dataset this page is: 'oils' (/realise/) or 'beverages' (/realise/beverages/).
+     They used to be one page with a corner toggle; they are separate pages now. */
+  dataset: "{{ initial_dataset|default:'oils' }}",
+  /* 'sales' = the channel / beverages view, 'realise' = the product table. Each is its
+     own page now, so the slide arrows that used to move between them are gone. */
+  page: "{{ initial_page|default:'sales' }}"
 };
 </script>
 {# The dashboard code itself - cached by the browser instead of re-sent each time. #}
@@ -1797,7 +1971,7 @@ window.__CP = {
   the template around it is already new - which shows up as a KPI that never fills
   in. Bump this number whenever dashboard.js changes.
 {% endcomment %}
-<script src="{% static 'realise/dashboard.js' %}?v=31" defer></script>
+<script src="{% static 'realise/dashboard.js' %}?v=40" defer></script>
 {% comment %}
   State map. d3-geo only turns the geojson outlines into SVG path data - the
   look is CSS. Both are deferred, so they run in order after dashboard.js and
@@ -1805,5 +1979,5 @@ window.__CP = {
 {% endcomment %}
 <script src="{% static 'vendor/js/d3-array.min.js' %}" defer></script>
 <script src="{% static 'vendor/js/d3-geo.min.js' %}" defer></script>
-<script src="{% static 'realise/state_map.js' %}?v=3" defer></script>
+<script src="{% static 'realise/state_map.js' %}?v=14" defer></script>
 {% endblock %}

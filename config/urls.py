@@ -5,7 +5,7 @@ from django.conf import settings
 from django.views.generic import RedirectView
 from django.views.static import serve as serve_static
 
-from core.views import PermissionLoginView, nav_ticker
+from core.views import PermissionLoginView, nav_ticker, switch_ui
 
 # Configure Django admin to use the control panel login instead of default admin login
 admin.site.login_url = '/accounts/login/'
@@ -21,6 +21,8 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/accounts/login/'), name='logout'),
 
     path('api/nav-ticker/', nav_ticker, name='nav_ticker'),
+    # Profile menu -> switch between the new look and the previous one.
+    path('ui/switch/', switch_ui, name='switch_ui'),
 
     path('', include('home.urls')),
     path('realise/', include('realise.urls')),
@@ -29,6 +31,10 @@ urlpatterns = [
 
     path('inventory/', include('inventory.urls')),
 ]
+
+# Live reload endpoint the browser listens on. Dev only.
+if settings.DEBUG:
+    urlpatterns += [path('__reload__/', include('django_browser_reload.urls'))]
 
 # Serve static files in development
 if settings.DEBUG:

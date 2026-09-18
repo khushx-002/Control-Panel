@@ -32,7 +32,10 @@ def _get_type_filter(request):
 
 @permission_flag_required('can_sales')
 def dashboard(request):
-    return render(request, 'sales/dashboard.html', {'sidebar_active': 'sales'})
+    from core.ui_mode import pick
+    return render(request, pick(request, 'sales/dashboard.html',
+                                         'sales/dashboard_legacy.html'),
+                  {'sidebar_active': 'sales'})
 
 
 @permission_flag_required('can_sales', json_response=True)

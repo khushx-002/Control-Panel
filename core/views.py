@@ -1,7 +1,8 @@
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse, HttpResponseRedirect
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model, authenticate, login
 from django.db.utils import OperationalError, ProgrammingError
 
@@ -92,3 +93,19 @@ def nav_ticker(request):
     items = get_ticker_items(year, month, blocking=True)
     items = _filter_ticker_items(items, build_user_permissions(request.user))
     return JsonResponse({'items': items})
+
+
+# ── Look switcher ──────────────────────────────────────────────────────────────
+# The redesign ships alongside the previous look; each person picks from the
+# profile menu. POST only, so a crawler or a prefetch can never flip someone's
+# screen, and it returns them to the page they were on.
+@login_required
+@require_http_methods(['POST'])
+def switch_ui(request):
+    from core import ui_mode
+    ui_mode.set_mode(request, request.POST.get('mode'))
+    nxt = request.POST.get('next') or '/'
+    # Only ever bounce back inside this site.
+    if not nxt.startswith('/') or nxt.startswith('//'):
+        nxt = '/'
+    return redirect(nxt)

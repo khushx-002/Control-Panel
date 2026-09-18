@@ -1,113 +1,55 @@
-import calendar
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
-from django.core.cache import cache
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 
-from . import services
+from core.context_processors import build_user_permissions
+
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL = 180  # 3 minutes
-
-_KPI_FETCHERS = [
-    ('total_sales_volume', services.get_total_sales_volume),
-    ('avg_realisation',    services.get_avg_realisation),
-    ('cogs',               services.get_cost_of_goods_sold),
-    ('opex',               services.get_operating_expenses),
-    ('salaries',           services.get_salary_expenditure),
-    ('inventory',          services.get_inventory_value),
+# ── Landing ───────────────────────────────────────────────────────────────
+# The Control Panel home page is gone - "/" is the Sales page now. It stays a redirect
+# rather than a straight URL swap so every existing bookmark, {% url 'home' %} and
+# LOGIN_REDIRECT_URL keeps working instead of 404-ing.
+#
+# Not everyone can open Sales, and group_required answers a user without access with a bare
+# 403 that carries no navigation at all - which would strand them at the front door. So each
+# user is handed the first page they are actually allowed to see, in sidebar order.
+LANDING_ROUTES = [
+    ('can_realise',              'realise:dashboard'),         # Sales - the main page
+    ('can_inventory',            'inventory:dashboard'),
+    ('can_compare_sales',        'realise:compare_sales'),
+    ('can_dispatch_details',     'realise:dispatch_details'),
+    ('can_realise_calculator',   'realise:realise_calculator'),
+    ('can_customer_aging',       'realise:customer_aging'),
+    ('can_required_credit_limit','realise:required_credit_limit'),
+    ('can_open_payments',        'realise:open_payments'),
+    ('can_oih_vs_stock',         'realise:oih_vs_stock'),
+    ('can_stock_available',      'inventory:stock_available'),
+    ('can_reconciliation',       'inventory:reconciliation'),
+    ('can_production',           'inventory:production'),
+    ('can_expenses',             'dashboard:expenses'),
+    ('can_salaries',             'dashboard:salaries'),
 ]
-
-# Direction that reads as "good" for each KPI's month-on-month trend: revenue metrics are
-# better when they rise (True); cost metrics are better when they fall (False); the rest are
-# neutral (None). Drives the green(good)/red(bad) trend pill so a card is readable at a glance.
-_KPI_HIGHER_IS_BETTER = {
-    'total_sales_volume': True,
-    'avg_realisation':    True,
-    'cogs':               False,
-    'opex':               False,
-    'salaries':           False,
-    'inventory':          None,
-}
-
-
-def _build_period_options():
-    today = date.today()
-    options = []
-    year, month = today.year, today.month
-    for _ in range(13):
-        label = date(year, month, 1).strftime('%B %Y')
-        options.append({'value': f'{year}-{month:02d}', 'label': label})
-        month -= 1
-        if month == 0:
-            month = 12
-            year -= 1
-    return options
-
-
-def _resolve_period(request):
-    raw = request.GET.get('period', '')
-    today = date.today()
-    try:
-        parts = raw.split('-')
-        y, m = int(parts[0]), int(parts[1])
-        if 1 <= m <= 12 and 2000 <= y <= 2100:
-            return y, m
-    except (ValueError, IndexError, AttributeError):
-        pass
-    return today.year, today.month
 
 
 @login_required
-def index(request):
-    year, month = _resolve_period(request)
-    nocache = request.GET.get('nocache') == '1'
-
-    cache_key = f'home_kpis_{year}_{month:02d}'
-    kpis = None if nocache else cache.get(cache_key)
-
-    if kpis is None:
-        kpis = {}
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            futures = {
-                pool.submit(fn, year, month): name
-                for name, fn in _KPI_FETCHERS
-            }
-            for future in as_completed(futures):
-                name = futures[future]
-                try:
-                    kpis[name] = future.result()
-                except Exception as e:
-                    logger.error('[home] KPI "%s" raised: %s', name, e)
-                    kpis[name] = services._stub_kpi(name, 'circle-alert', 'grey')
-        cache.set(cache_key, kpis, CACHE_TTL)
-
-    # Tag each KPI with its trend direction semantics (idempotent — safe on cached payloads too).
-    for _name, _kpi in kpis.items():
-        if isinstance(_kpi, dict):
-            _kpi['higher_is_better'] = _KPI_HIGHER_IS_BETTER.get(_name)
-
-    period_month_name = date(year, month, 1).strftime('%B')
-
-    ctx = {
-        'sidebar_active': 'home',
-        'kpis':           kpis,
-        'period_year':    year,
-        'period_month':   month,
-        'period_label':   f'{period_month_name} {year}',
-        'period_options': _build_period_options(),
-        'selected_period': f'{year}-{month:02d}',
-    }
-    return render(request, 'home/index.html', ctx)
+def landing(request):
+    """Send "/" to the Sales page, or to the first page this user can actually open."""
+    perms = build_user_permissions(request.user)
+    for flag, route in LANDING_ROUTES:
+        if perms.get(flag):
+            return redirect(route)
+    if _is_user_admin(request.user):
+        return redirect('user_management')
+    return HttpResponseForbidden(
+        'Your account has no pages enabled yet. Please ask an administrator for access.')
 
 
 # ── User management (create users & assign access without the Django admin) ─────────────────
