@@ -655,183 +655,184 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     </div>
   </section>
   <section class="rd-slide" id="slideTwo">
-    <div class="sc2-wrap">
-      {% comment %}
-        Title and every control share one row. The title is just another flex item
-        at the start of the bar, so the fields keep their own alignment and
-        "Update Targets" keeps its margin-left:auto push to the far right.
-      {% endcomment %}
-      <div class="sc2-drillbar sc2-period-bar">
-        <div class="sc2-title sc2-title-inline"><h2>Oils Sale</h2></div>
-        <span id="sc2RangeCtl" style="display:contents">
-          <div class="sc2-fld"><label for="sc2From">From</label>
-            <input type="date" id="sc2From"></div>
-          <div class="sc2-fld"><label for="sc2To">To</label>
-            <input type="date" id="sc2To"></div>
-        </span>
-        <div class="sc2-fld"><label for="sc2Segment">Segment</label>
-          <select id="sc2Segment" onchange="renderSlideTwo()">
+    {% comment %}
+      WORKBENCH layout. Two columns: a fixed filter rail on the left, a tabbed canvas
+      on the right. Every element id dashboard.js reads is kept exactly as it was -
+      only the shell around them changed. The channel-detail, top-customer and
+      monthly modals still hang off #channelGrid, which stays in the DOM (hidden).
+    {% endcomment %}
+    <div class="wb">
+
+      <aside class="wb-rail" aria-label="Filters">
+        <div class="wb-brand">
+          <h1>Oils Sale</h1>
+        </div>
+
+        <div class="wb-grp">
+          <h3>Period</h3>
+          <span id="sc2RangeCtl" style="display:contents">
+            <label class="wb-fld" for="sc2From"><span>From</span><input type="date" id="sc2From"></label>
+            <label class="wb-fld" for="sc2To"><span>To</span><input type="date" id="sc2To"></label>
+          </span>
+        </div>
+
+        <div class="wb-grp">
+          <h3>Segment</h3>
+          {% comment %}
+            Three buttons for the eye; the real control is the <select> underneath,
+            which dashboard.js reads. Clicking a button sets the select and fires
+            its change event, so nothing in dashboard.js had to move.
+          {% endcomment %}
+          <div class="wb-segs" id="wbSegs" role="group" aria-label="Segment">
+            <button type="button" class="a on" data-v="">All</button>
+            <button type="button" class="p" data-v="PREMIUM">Premium</button>
+            <button type="button" class="c" data-v="COMMODITY">Commodity</button>
+          </div>
+          <select id="sc2Segment" onchange="renderSlideTwo()" class="wb-hidden-select" aria-hidden="true" tabindex="-1">
             <option value="">All</option>
             <option value="PREMIUM">Premium</option>
             <option value="COMMODITY">Commodity</option>
-          </select></div>
-        {% comment %}
-          Fetch button removed: changing From/To reloads by itself, and the live
-          heartbeat re-pulls whenever SAP changes - there was nothing left to click.
-        {% endcomment %}
-        <div class="sc2-fld"><label for="sc2DrillBy">Drill By</label>
-          <select id="sc2DrillBy" onchange="onSlideTwoDrillChange()">
-            <option value="main_group">Main Group</option>
-            <option value="person">Sales Person</option>
-            <option value="state">State</option>
-          </select></div>
-        <div id="sc2DynWrap" class="com-drill" style="display:none">
-          <label>Drill Order</label>
-          <div class="com-drill-box">
-            <button type="button" class="com-drill-btn" id="sc2DynBtn">
-              <span id="sc2DynLabel">State</span><span class="com-caret">&#9662;</span>
-            </button>
-            <div class="com-drill-panel" id="sc2DynPanel">
-              <div class="com-dp-head"><a id="sc2DynSelAll">Select All</a><a id="sc2DynClrAll">Clear All</a></div>
-              <div class="com-dp-list" id="sc2DynList"></div>
-              {% comment %}
-                Apply removed: ticking a level applies it at once, so the button was a
-                second click for a decision already made.
-              {% endcomment %}
-            </div>
-          </div>
+          </select>
         </div>
-        <div id="comDrillWrap" class="com-drill" style="display:none">
-          <label>Drill By</label>
-          <div class="com-drill-box">
-            <button type="button" class="com-drill-btn" id="comDrillBtn">
-              <span id="comDrillLabel">Product</span><span class="com-caret">&#9662;</span>
-            </button>
-            <div class="com-drill-panel" id="comDrillPanel">
-              <div class="com-dp-head"><a id="comSelAll">Select All</a><a id="comClrAll">Clear All</a></div>
-              <div class="com-dp-list" id="comDpList"></div>
-              <div class="com-dp-foot"><button type="button" id="comApply">Apply</button></div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="sc2-today-btn" id="sc2RawExportBtn" onclick="exportMainRawCSV()" title="Export the raw data behind this view (Excel/CSV)">
-          <i class="ic ic-download"></i>Export Excel
-        </button>
-        <button type="button" class="sc2-today-btn" id="sc2ExportBtn" onclick="exportChannelCSV()"
-                title="Export the channel rows as CSV">&#11015; Export CSV</button>
-        <a class="btn btn-edit sc2-targets-right" id="sc2TargetsLink" href="{% url 'realise:channel_targets' %}">Update Targets</a>
-      </div>
-      <!-- KPI cards sit BELOW the control bar: the filters decide what the cards
-           are counting, so they are read first. -->
-      <div class="sc2-kpis" id="channelKpis">
-        <div class="sc2-kpi k-target">
-          <div class="sc2-kpi-main">
-            <div class="sc2-kpi-head"><span class="sc2-kpi-ic"><i class="ic ic-flag"></i></span><label>Target Ltr</label></div>
-            <div class="sc2-kpi-val"><span id="sc2KpiTarget">&mdash;</span><span class="k-unit">LTR</span></div>
-          </div>
-          <svg class="k-spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
-            <path class="k-spark-fill" d="M0,20 C10,16 18,21 30,18 C42,15 50,20 62,16 C74,12 86,18 100,14 L100,26 L0,26 Z"/>
-            <path class="k-spark-line" d="M0,20 C10,16 18,21 30,18 C42,15 50,20 62,16 C74,12 86,18 100,14"/>
-          </svg>
-          <div class="sc2-kpi-foot">
-            <div class="k-foot-line" id="sc2KpiTargetRealise">&mdash;</div>
-          </div>
-        </div>
-        <div class="sc2-kpi k-done sc2-kpi-click" onclick="openMetricWindow('done')" title="Open Done breakdown">
-          <div class="sc2-kpi-main">
-            <div class="sc2-kpi-head"><span class="sc2-kpi-ic"><i class="ic ic-truck"></i></span><label>Done Ltr</label></div>
-            <div class="sc2-kpi-val"><span id="sc2KpiDone">&mdash;</span><span class="k-unit">LTR</span></div>
-          </div>
-          <svg class="k-spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
-            <path class="k-spark-fill" d="M0,17 C12,20 20,13 32,15 C46,18 54,11 68,14 C80,17 90,12 100,15 L100,26 L0,26 Z"/>
-            <path class="k-spark-line" d="M0,17 C12,20 20,13 32,15 C46,18 54,11 68,14 C80,17 90,12 100,15"/>
-          </svg>
-          <div class="sc2-kpi-foot">
-            <div class="k-foot-line" id="sc2KpiDoneRealise">&mdash;</div>
-          </div>
-        </div>
-        <div class="sc2-kpi k-oih sc2-kpi-click sc2-range-card" onclick="openOihWindow()" title="Open OIH breakdown">
-          <div class="sc2-kpi-main">
-            <div class="sc2-kpi-head"><span class="sc2-kpi-ic"><i class="ic ic-warehouse"></i></span><label>OIH Ltr</label></div>
-            <div class="sc2-kpi-val"><span id="sc2KpiOih">&mdash;</span><span class="k-unit">LTR</span></div>
-          </div>
-          <svg class="k-spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
-            <path class="k-spark-fill" d="M0,21 C10,18 20,22 32,19 C44,16 54,21 66,18 C80,14 90,19 100,16 L100,26 L0,26 Z"/>
-            <path class="k-spark-line" d="M0,21 C10,18 20,22 32,19 C44,16 54,21 66,18 C80,14 90,19 100,16"/>
-          </svg>
-          <div class="sc2-kpi-foot">
-            <div class="k-foot-line" id="sc2KpiOihRealise">&mdash;</div>
-          </div>
-        </div>
-        <div class="sc2-kpi k-bal sc2-kpi-click sc2-range-card" onclick="openMetricWindow('balance')" title="Open Balance breakdown">
-          <div class="sc2-kpi-main">
-            <div class="sc2-kpi-head"><span class="sc2-kpi-ic"><i class="ic ic-scale"></i></span><label>Bal Ltr</label></div>
-            <div class="sc2-kpi-val"><span id="sc2KpiBal">&mdash;</span><span class="k-unit">LTR</span></div>
-          </div>
-          <svg class="k-spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
-            <path class="k-spark-fill" d="M0,15 C12,12 20,18 32,16 C44,14 54,19 66,17 C78,15 88,20 100,18 L100,26 L0,26 Z"/>
-            <path class="k-spark-line" d="M0,15 C12,12 20,18 32,16 C44,14 54,19 66,17 C78,15 88,20 100,18"/>
-          </svg>
-          <div class="sc2-kpi-foot">
-            <div class="k-foot-line" id="sc2KpiBalRealise" title="Bal realise — the ₹ per litre still needed on the remaining litres to reach the target revenue, and the money that still leaves to earn">&mdash;</div>
-          </div>
-        </div>
-        {% comment %}
-          The "Target Realise" card used to sit here. Removed - that figure is now the
-          realise line under Target Ltr, the same way Done Ltr and OIH Ltr show theirs.
-        {% endcomment %}
-        {% comment %}
-          The "Actual Realise" card used to sit here. It was removed because the very
-          same figure now shows under Done Ltr, as the ₹/LTR half of that card's
-          realise line - see sc2KpiDoneRealise in dashboard.js.
-        {% endcomment %}
-      </div>
-      {% comment %}
-        Today Sale: the same three figures the "Today's Sales" popup shows, laid across
-        the page so they can be read without opening anything. Both are filled from one
-        cached fetch (fetchTodaySales), so putting this here costs no extra SAP call.
-      {% endcomment %}
-      <section class="sc2-today-panel">
-        <div class="sc2-today-panel-head">
-          <h3>Today Sale</h3>
-          <span class="sc2-today-panel-date" id="sc2TodayBoxDate">&mdash;</span>
-        </div>
-        <div class="sc2-today-panel-cards">
-          <div class="sc2-tcard prem"><span class="tl">Premium</span><span class="tv" id="sc2TodayPrem">&mdash;</span></div>
-          <div class="sc2-tcard comm"><span class="tl">Commodity</span><span class="tv" id="sc2TodayComm">&mdash;</span></div>
-          <div class="sc2-tcard total"><span class="tl">Total</span><span class="tv" id="sc2TodayTotal">&mdash;</span></div>
-        </div>
-      </section>
-      <!-- Where the litres go: the same channel rows slide two already has,
-           summed per state and shaded on the map. Plain SVG - see state_map.js. -->
-      <section class="rsm-card">
-        <div class="rsm-head">
-          <div>
-            <h3>Where the litres go</h3>
-          </div>
-          <span class="rsm-chip" id="rsmChip">No data yet</span>
-        </div>
-        <!-- One button per channel card below, plus All. Filled by state_map.js
-             from CHANNEL_BLOCKS so it can never drift from the cards. -->
-        <div class="rsm-tabs" id="rsmTabs" role="tablist" aria-label="Channel"></div>
-        <div class="rsm-body">
-          <div class="rsm-map" id="rsmWrap" data-geo-url="{% static 'core/geo/india_states.geojson' %}">
-            <div class="rsm-empty" id="rsmEmpty">Fetch a date range and the map fills in.</div>
-            <svg class="rsm-svg" id="rsmSvg" viewBox="0 0 600 680" role="img"
-                 aria-label="India map shaded by litres sold per state" hidden></svg>
-            <div class="rsm-stats" id="rsmStats"></div>
-            <div class="rsm-zonebox" id="rsmZones"></div>
-            <div class="rsm-scale" id="rsmScale" hidden><span>Less</span><i></i><span>More</span></div>
-            <div class="rsm-tip" id="rsmTip"></div>
-          </div>
-          <aside class="rsm-side">
-            <h4>States by litres</h4>
-            <div id="rsmList"><p class="rsm-empty-note">The list fills in once data loads.</p></div>
-          </aside>
-        </div>
-      </section>
 
-      <div class="sc2-grid" id="channelGrid"></div>
+        <div class="wb-grp">
+          <h3>Channels <small>click to focus</small></h3>
+          {# Filled by state_map.js from CHANNEL_BLOCKS - one row per channel, plus All. #}
+          <div class="rsm-tabs wb-legend" id="rsmTabs" role="tablist" aria-label="Channel"></div>
+        </div>
+
+        <div class="wb-grp">
+          <h3>Drill by</h3>
+          <label class="wb-fld" for="sc2DrillBy"><span>Level</span>
+            <select id="sc2DrillBy" onchange="onSlideTwoDrillChange()">
+              <option value="main_group">Main Group</option>
+              <option value="person">Sales Person</option>
+              <option value="state">State</option>
+            </select></label>
+          <div id="sc2DynWrap" class="com-drill wb-drill" style="display:none">
+            <label>Drill Order</label>
+            <div class="com-drill-box">
+              <button type="button" class="com-drill-btn" id="sc2DynBtn">
+                <span id="sc2DynLabel">State</span><span class="com-caret">&#9662;</span>
+              </button>
+              <div class="com-drill-panel" id="sc2DynPanel">
+                <div class="com-dp-head"><a id="sc2DynSelAll">Select All</a><a id="sc2DynClrAll">Clear All</a></div>
+                <div class="com-dp-list" id="sc2DynList"></div>
+              </div>
+            </div>
+          </div>
+          <div id="comDrillWrap" class="com-drill wb-drill" style="display:none">
+            <label>Drill By</label>
+            <div class="com-drill-box">
+              <button type="button" class="com-drill-btn" id="comDrillBtn">
+                <span id="comDrillLabel">Product</span><span class="com-caret">&#9662;</span>
+              </button>
+              <div class="com-drill-panel" id="comDrillPanel">
+                <div class="com-dp-head"><a id="comSelAll">Select All</a><a id="comClrAll">Clear All</a></div>
+                <div class="com-dp-list" id="comDpList"></div>
+                <div class="com-dp-foot"><button type="button" id="comApply">Apply</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wb-grp wb-actions">
+          <button type="button" class="wb-btn" id="sc2RawExportBtn" onclick="exportMainRawCSV()" title="Export the raw data behind this view (Excel/CSV)"><i class="ic ic-download"></i>Export Excel</button>
+          <button type="button" class="wb-btn" id="sc2ExportBtn" onclick="exportChannelCSV()" title="Export the channel rows as CSV"><i class="ic ic-download"></i>Export CSV</button>
+          <a class="wb-btn primary" id="sc2TargetsLink" href="{% url 'realise:channel_targets' %}">Update Targets</a>
+        </div>
+      </aside>
+
+      <main class="wb-canvas">
+        <div class="wb-tabs" role="tablist" aria-label="View">
+          <button type="button" class="on" data-pane="wbOverview" role="tab" aria-selected="true">Overview</button>
+          <button type="button" data-pane="wbMap" role="tab" aria-selected="false">Map</button>
+          <button type="button" data-pane="wbRealise" role="tab" aria-selected="false">Realise</button>
+        </div>
+
+        {# ---------------- Overview ---------------- #}
+        <section class="wb-pane on" id="wbOverview" role="tabpanel">
+          <div class="wb-hd"><h2>Overview</h2><p id="wbOverviewSub">All channels · done vs open, one scale across every card</p></div>
+
+          {% comment %}
+            The four headline tiles. The ids are the ones dashboard.js fills; the
+            progress bar under each is set by state_map.js from those same values.
+          {% endcomment %}
+          <div class="wb-stats" id="channelKpis">
+            <div class="wb-stat k-target">
+              <span class="wb-stat-l">Target</span>
+              <div class="wb-stat-v"><b id="sc2KpiTarget">&mdash;</b><small>LTR</small></div>
+              <div class="wb-bar"><i id="wbBarTarget"></i></div>
+              <div class="wb-stat-f" id="sc2KpiTargetRealise">&mdash;</div>
+            </div>
+            <div class="wb-stat k-done sc2-kpi-click" onclick="openMetricWindow('done')" title="Open Done breakdown">
+              <span class="wb-stat-l">Done</span>
+              <div class="wb-stat-v"><b id="sc2KpiDone">&mdash;</b><small>LTR</small></div>
+              <div class="wb-bar"><i id="wbBarDone"></i></div>
+              <div class="wb-stat-f" id="sc2KpiDoneRealise">&mdash;</div>
+            </div>
+            <div class="wb-stat k-oih sc2-kpi-click sc2-range-card" onclick="openOihWindow()" title="Open OIH breakdown">
+              <span class="wb-stat-l">Open orders</span>
+              <div class="wb-stat-v"><b id="sc2KpiOih">&mdash;</b><small>LTR</small></div>
+              <div class="wb-bar"><i id="wbBarOih"></i></div>
+              <div class="wb-stat-f" id="sc2KpiOihRealise">&mdash;</div>
+            </div>
+            <div class="wb-stat k-bal sc2-kpi-click sc2-range-card" onclick="openMetricWindow('balance')" title="Open Balance breakdown">
+              <span class="wb-stat-l">Balance</span>
+              <div class="wb-stat-v"><b id="sc2KpiBal">&mdash;</b><small>LTR</small></div>
+              <div class="wb-bar"><i id="wbBarBal"></i></div>
+              <div class="wb-stat-f" id="sc2KpiBalRealise" title="Bal realise — the ₹ per litre still needed on the remaining litres to reach the target revenue">&mdash;</div>
+            </div>
+          </div>
+
+          <div class="wb-row">
+            <section class="wb-card wb-today">
+              <h3>Today <span id="sc2TodayBoxDate">&mdash;</span></h3>
+              <div class="wb-today-bars">
+                <div class="wb-tb prem"><i id="wbTodayPremBar"></i><span>Premium</span><b id="sc2TodayPrem">&mdash;</b></div>
+                <div class="wb-tb comm"><i id="wbTodayCommBar"></i><span>Commodity</span><b id="sc2TodayComm">&mdash;</b></div>
+              </div>
+              <div class="wb-today-tot">Total <b id="sc2TodayTotal">&mdash;</b></div>
+            </section>
+            <section class="wb-card wb-pipe">
+              <h3>Pipeline <span>black tick = target</span></h3>
+              <div id="wbPipe" class="wb-bands"></div>
+            </section>
+          </div>
+
+          <div class="wb-hd small"><h2>By channel</h2><p>Done (solid) and open orders (light) by state · square-root scale so small states stay visible</p></div>
+          <div class="wb-multi" id="wbMulti"><p class="wb-empty">Pick a date range and the channel cards fill in.</p></div>
+        </section>
+
+        {# ---------------- Map ---------------- #}
+        <section class="wb-pane" id="wbMap" role="tabpanel">
+          <div class="wb-hd"><h2>Where the litres go</h2><span class="rsm-chip" id="rsmChip">No data yet</span></div>
+          <div class="rsm-card wb-mapcard">
+            <div class="rsm-body">
+              <div class="rsm-map" id="rsmWrap" data-geo-url="{% static 'core/geo/india_states.geojson' %}">
+                <div class="rsm-empty" id="rsmEmpty">Fetch a date range and the map fills in.</div>
+                <svg class="rsm-svg" id="rsmSvg" viewBox="0 0 600 680" role="img" aria-label="India map shaded by litres sold per state" hidden></svg>
+                <div class="rsm-stats" id="rsmStats"></div>
+                <div class="rsm-zonebox" id="rsmZones"></div>
+                <div class="rsm-scale" id="rsmScale" hidden><span>Less</span><i></i><span>More</span></div>
+                <div class="rsm-tip" id="rsmTip"></div>
+              </div>
+              <aside class="rsm-side">
+                <h4>States by litres</h4>
+                <div id="rsmList"><p class="rsm-empty-note">The list fills in once data loads.</p></div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        {# ---------------- Realise ---------------- #}
+        <section class="wb-pane" id="wbRealise" role="tabpanel">
+          <div class="wb-hd"><h2>Realise per litre</h2><p>₹ per litre · dotted line = target realise · sorted highest first</p></div>
+          <div class="wb-multi" id="wbRealiseMulti"><p class="wb-empty">Pick a date range and the realise cards fill in.</p></div>
+        </section>
+
+        <div class="sc2-grid" id="channelGrid"></div>
+      </main>
     </div>
   </section>
 </div>
@@ -874,8 +875,8 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   }
   .rsm-head h3{font-family:var(--font-display,Georgia,serif);font-weight:400;font-size:18px;color:#14301f}
   .rsm-chip{
-    font-size:11.5px;font-weight:700;color:#155e30;background:#e8f6ed;
-    border:1px solid #c3e4cf;padding:5px 12px;border-radius:999px;white-space:nowrap;
+    font-size:11.5px;font-weight:700;color:var(--map-deep,#155e30);background:var(--map-soft,#e8f6ed);
+    border:1px solid var(--map-brd,#c3e4cf);padding:5px 12px;border-radius:999px;white-space:nowrap;
   }
   /* Channel picker. Sits between the head and the map so it reads as "which of
      the cards below am I looking at", which is exactly what it selects. */
@@ -909,14 +910,14 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   .rsm-svg{width:100%;height:auto;max-height:540px;display:block;overflow:visible}
   /* The raised edge: nine copies of the same paths, each a step lower, with one
      soft shadow under the whole stack. Ordinary SVG, no 3D library. */
-  .rsm-extrude{filter:drop-shadow(0 12px 12px rgba(24,61,39,.28));pointer-events:none}
-  .rsm-wall{fill:#3f7d57;stroke:none}
+  .rsm-extrude{filter:drop-shadow(0 12px 12px var(--map-shadow,rgba(24,61,39,.28)));pointer-events:none}
+  .rsm-wall{fill:var(--map-mid,#3f7d57);stroke:none}
   .rsm-state{
     stroke:#ffffff;stroke-width:.6;cursor:pointer;transform-box:fill-box;transform-origin:center;
     transition:fill .25s ease,filter .2s ease,transform .2s ease;
   }
   .rsm-state:hover{filter:brightness(1.08);transform:scale(1.015)}
-  .rsm-state.is-on{filter:brightness(1.1) drop-shadow(0 0 4px rgba(21,94,48,.55))}
+  .rsm-state.is-on{filter:brightness(1.1) drop-shadow(0 0 4px var(--map-glow,rgba(21,94,48,.55)))}
   .rsm-svg.is-entering .rsm-state{animation:rsmRise .5s cubic-bezier(.2,.7,.3,1) backwards}
   @keyframes rsmRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
   .rsm-tip{
@@ -950,12 +951,12 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     padding-bottom:7px;border-bottom:1px solid #eef5f1;margin-bottom:6px;
   }
   .rsm-mini h4 em{
-    font-style:normal;font-size:11.5px;font-weight:800;color:#155e30;
+    font-style:normal;font-size:11.5px;font-weight:800;color:var(--map-deep,#155e30);
     font-variant-numeric:tabular-nums;letter-spacing:0;
   }
   .rsm-mini-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;padding:4px 0}
   .rsm-mini-n{font-size:11.5px;font-weight:600;color:#14301f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .rsm-mini-v{font-size:11.5px;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums}
+  .rsm-mini-v{font-size:11.5px;font-weight:800;color:var(--map-deep,#155e30);font-variant-numeric:tabular-nums}
   .rsm-mini-v.up{color:#15803d}
   .rsm-mini-v.down{color:#b45309}
   .rsm-mini-bar{grid-column:1/-1;height:3px;border-radius:999px;background:#eef5f1;overflow:hidden}
@@ -964,7 +965,7 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   /* delivered-so-far line above the pending list */
   .rsm-fill{display:flex;align-items:center;gap:8px;padding:2px 0 7px;border-bottom:1px solid #f3f8f5;margin-bottom:4px}
   .rsm-fill>span:first-child{font-size:10.5px;font-weight:700;color:#6f8578;white-space:nowrap}
-  .rsm-fill .rsm-mini-bar i{background:linear-gradient(90deg,#4f9c6b,#155e30)}
+  .rsm-fill .rsm-mini-bar i{background:linear-gradient(90deg,var(--map-mid,#4f9c6b),var(--map-deep,#155e30))}
   .rsm-mini-lbl{
     font-size:9.5px;font-weight:800;color:#8fa398;letter-spacing:.05em;
     margin:6px 0 1px;
@@ -979,7 +980,7 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   }
   .rsm-scale{display:flex;align-items:center;gap:9px;font-size:11px;color:#6f8578;padding:0 10px 2px}
   .rsm-scale i{flex:1;max-width:190px;height:7px;border-radius:999px;
-    background:linear-gradient(90deg,#e2f3e6,#3f7d57,#155e30)}
+    background:linear-gradient(90deg,var(--map-light,#e2f3e6),var(--map-mid,#3f7d57),var(--map-deep,#155e30))}
   .rsm-side{
     border-left:1px solid #e6f1ea;padding:12px 6px 14px 14px;max-height:540px;overflow-y:auto;
     background:linear-gradient(180deg,#fff,#f7fbf8);
@@ -993,13 +994,13 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     padding:8px 10px 8px 0;border-bottom:1px solid #eef5f1;
   }
   .rsm-row:last-child{border-bottom:0}
-  .rsm-row:hover,.rsm-row.is-on{background:#e8f6ed;border-radius:8px}
+  .rsm-row:hover,.rsm-row.is-on{background:var(--map-soft,#e8f6ed);border-radius:8px}
   .rsm-row-name{font-size:12.5px;color:#14301f;font-weight:600;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .rsm-row-val{font-size:12.5px;font-weight:800;color:#155e30;font-variant-numeric:tabular-nums}
+  .rsm-row-val{font-size:12.5px;font-weight:800;color:var(--map-deep,#155e30);font-variant-numeric:tabular-nums}
   .rsm-row-bar{grid-column:1/-1;height:4px;border-radius:999px;background:#e9f2ec;overflow:hidden}
   .rsm-row-bar i{display:block;height:100%;border-radius:999px;transform-origin:left;
-    background:linear-gradient(90deg,#4f9c6b,#155e30);
+    background:linear-gradient(90deg,var(--map-mid,#4f9c6b),var(--map-deep,#155e30));
     animation:rsmGrow .6s cubic-bezier(.2,.7,.3,1) backwards}
   @keyframes rsmGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   .rsm-empty-note{font-size:12.5px;color:#6f8578;padding:18px 10px 0;line-height:1.7}
@@ -1948,6 +1949,145 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     </div>
   </div>
 </div>
+<style>
+/* =============================================================================
+   WORKBENCH - the new Oils Sale look. Light theme only, on purpose.
+   Fonts are the ones base.html already vendors (Inter for text, CPNum for
+   digits): this panel installs without internet, so no Google Fonts here.
+   One colour per category, used everywhere on the page - legend, bars, dots.
+   ============================================================================= */
+#slideTwo{
+  --wb-bg:#f5f6f8; --wb-rail:#ffffff; --wb-card:#ffffff; --wb-line:#e2e5eb; --wb-line2:#c9cfd9;
+  --wb-ink:#111827; --wb-ink2:#4b5563; --wb-ink3:#8b94a5;
+  --premium:#5a4bc4; --commodity:#d99a1e;
+  --ch-ECOM:#2a78d6; --ch-GT:#eb6834; --ch-MT:#1baf7a; --ch-CSD:#e87ba4; --ch-HORECA:#7a6ad8; --ch-ROI:#8a97ab; --ch-REST:#8a97ab; --ch-ALL:#111827;
+  --good:#0f7a3a; --bad:#c9302c; --warn:#b45309;
+  /* Map accent. Green (the Ecom map) for All channels; state_map.js swaps these
+     for the active channel's colour so the map matches the channel cards. */
+  --map-light:#e6e9ee; --map-mid:#3e4b5c; --map-deep:#2e3745; --map-soft:#eceff3; --map-brd:#cdd3dc;
+  --map-shadow:rgba(46,55,69,.28); --map-glow:rgba(71,85,105,.55);
+  --mono:'CPNum',ui-monospace,Menlo,Consolas,monospace;
+  background:var(--wb-bg);color:var(--wb-ink);
+}
+#slideTwo *{box-sizing:border-box}
+#slideTwo .wb{display:grid;grid-template-columns:250px minmax(0,1fr);flex:1;min-height:0;height:100%}
+#slideTwo .wb-rail{background:var(--wb-rail);border-right:1px solid var(--wb-line);padding:18px 16px 24px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;min-height:0}
+#slideTwo .wb-canvas{padding:16px 22px 32px;overflow-y:auto;min-height:0;min-width:0}
+/* rail */
+#slideTwo .wb-brand h1{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--wb-ink)}
+#slideTwo .wb-brand p{margin:3px 0 0;font-size:12px;color:var(--wb-ink3)}
+#slideTwo .wb-grp h3{margin:0 0 8px;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--wb-ink3);display:flex;justify-content:space-between;align-items:baseline}
+#slideTwo .wb-grp h3 small{font-weight:600;text-transform:none;letter-spacing:0;font-size:10.5px}
+#slideTwo .wb-fld{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;border:1px solid var(--wb-line2);border-radius:9px;padding:6px 8px 6px 10px;background:var(--wb-card);margin-bottom:6px;font-size:12px;color:var(--wb-ink2)}
+#slideTwo .wb-fld span{font-weight:600}
+#slideTwo .wb-fld input,#slideTwo .wb-fld select{border:0;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--wb-ink);padding:2px 0;min-width:0;width:100%;outline:none;font-family:var(--mono)}
+#slideTwo .wb-fld select{font-family:inherit}
+#slideTwo .wb-fld:focus-within{border-color:var(--wb-ink);box-shadow:0 0 0 3px rgba(17,24,39,.08)}
+#slideTwo .wb-segs{display:flex;gap:6px}
+#slideTwo .wb-segs button{flex:1;border:1px solid var(--wb-line2);background:var(--wb-card);border-radius:9px;padding:7px 4px;font:inherit;font-size:12px;font-weight:700;color:var(--wb-ink3);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+#slideTwo .wb-segs button.on{color:#fff;border-color:transparent}
+#slideTwo .wb-segs .a.on{background:var(--wb-ink)} #slideTwo .wb-segs .p.on{background:var(--premium)} #slideTwo .wb-segs .c.on{background:var(--commodity)}
+#slideTwo .wb-hidden-select{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden}
+/* channel legend = the toggle (state_map.js builds the buttons) */
+#slideTwo #rsmTabs.wb-legend{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none}
+#slideTwo #rsmTabs .rsm-tab{display:grid;grid-template-columns:10px 1fr auto;gap:9px;align-items:center;text-align:left;border:1px solid transparent;background:none;border-radius:8px;padding:6px 8px;font:inherit;font-size:12.5px;font-weight:600;color:var(--wb-ink2);cursor:pointer;letter-spacing:0;white-space:nowrap}
+#slideTwo #rsmTabs .rsm-tab::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--ch-ALL)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="ECOM"]::before{background:var(--ch-ECOM)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="GT"]::before{background:var(--ch-GT)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="MT"]::before{background:var(--ch-MT)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="CSD"]::before{background:var(--ch-CSD)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="HORECA"]::before{background:var(--ch-HORECA)}
+#slideTwo #rsmTabs .rsm-tab[data-ch="ROI"]::before,#slideTwo #rsmTabs .rsm-tab[data-ch="REST"]::before{background:var(--ch-ROI)}
+#slideTwo #rsmTabs .rsm-tab b{font-weight:600;color:var(--wb-ink3);font-family:var(--mono);font-size:11.5px;margin:0;opacity:1}
+#slideTwo #rsmTabs .rsm-tab:hover{background:var(--wb-bg)}
+#slideTwo #rsmTabs .rsm-tab.is-on{background:var(--wb-bg);border-color:var(--wb-line2);color:var(--wb-ink)}
+#slideTwo #rsmTabs .rsm-tab.is-on b{color:var(--wb-ink)}
+/* drill dropdowns reuse .com-drill; just make them fill the rail */
+#slideTwo .wb-drill{display:block;margin-top:6px}
+#slideTwo .wb-drill>label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--wb-ink3);margin:8px 0 6px}
+#slideTwo .wb-drill .com-drill-btn{width:100%;justify-content:space-between}
+/* actions */
+#slideTwo .wb-actions{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+#slideTwo .wb-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--wb-line2);background:var(--wb-card);color:var(--wb-ink2);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;transition:background .15s,color .15s,border-color .15s}
+#slideTwo .wb-btn:hover{background:var(--wb-bg);color:var(--wb-ink)}
+#slideTwo .wb-btn.primary{background:var(--wb-ink);border-color:var(--wb-ink);color:#fff}
+#slideTwo .wb-btn.primary:hover{background:#000}
+#slideTwo .wb-btn .ic{font-size:15px}
+/* canvas */
+#slideTwo .wb-tabs{display:flex;gap:2px;border-bottom:1px solid var(--wb-line);margin-bottom:16px;position:sticky;top:-16px;background:var(--wb-bg);z-index:5;padding-top:2px}
+#slideTwo .wb-tabs button{border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--wb-ink3);padding:9px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;border-radius:0}
+#slideTwo .wb-tabs button.on{color:var(--wb-ink);border-bottom-color:var(--wb-ink)}
+#slideTwo .wb-tabs button:focus-visible{outline:2px solid var(--wb-ink);outline-offset:-2px}
+#slideTwo .wb-pane{display:none}#slideTwo .wb-pane.on{display:block}
+#slideTwo .wb-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px}
+#slideTwo .wb-hd.small{margin-top:18px}
+#slideTwo .wb-hd h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--wb-ink)}
+#slideTwo .wb-hd.small h2{font-size:14px}
+#slideTwo .wb-hd p{margin:0;color:var(--wb-ink3);font-size:12.5px}
+/* stat tiles */
+#slideTwo .wb-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+#slideTwo .wb-stat{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:12px;padding:12px 14px 12px;min-width:0;position:relative}
+#slideTwo .wb-stat.sc2-kpi-click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#slideTwo .wb-stat.sc2-kpi-click:hover{border-color:var(--wb-line2);box-shadow:0 6px 18px rgba(17,24,39,.07)}
+#slideTwo .wb-stat-l{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--wb-ink3)}
+#slideTwo .wb-stat-v{display:flex;align-items:baseline;gap:5px;margin-top:5px}
+#slideTwo .wb-stat-v b{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--wb-ink);letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#slideTwo .wb-stat-v small{font-size:10.5px;font-weight:800;color:var(--wb-ink3)}
+#slideTwo .wb-stat-v b.pos{color:var(--good)} #slideTwo .wb-stat-v b.neg{color:var(--bad)}
+#slideTwo .wb-bar{height:6px;border-radius:999px;background:var(--wb-line);margin-top:9px;overflow:hidden}
+#slideTwo .wb-bar i{display:block;height:100%;width:0;border-radius:999px;transition:width .5s cubic-bezier(.2,.7,.3,1)}
+#slideTwo .k-target .wb-bar i{background:var(--wb-ink3)} #slideTwo .k-done .wb-bar i{background:var(--good)}
+#slideTwo .k-oih .wb-bar i{background:var(--ch-ECOM)} #slideTwo .k-bal .wb-bar i{background:var(--bad)}
+#slideTwo .wb-stat-f{margin-top:8px;font-size:11.5px;color:var(--wb-ink2);display:flex;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden}
+#slideTwo .wb-stat-f .k-rate{font-family:var(--mono);font-weight:700;color:var(--wb-ink)}
+#slideTwo .wb-stat-f .k-money{color:var(--wb-ink3)}
+#slideTwo .wb-stat-f .u{font-size:10px;font-weight:700;color:var(--wb-ink3);margin-left:2px}
+/* second row: today + pipeline */
+#slideTwo .wb-row{display:grid;grid-template-columns:1fr 1.4fr;gap:12px}
+#slideTwo .wb-card{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:12px;padding:12px 14px 14px;min-width:0}
+#slideTwo .wb-card h3{margin:0 0 10px;font-size:12.5px;font-weight:700;color:var(--wb-ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#slideTwo .wb-card h3 span{font-weight:600;color:var(--wb-ink3);font-size:11.5px}
+#slideTwo .wb-today-bars{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;height:150px}
+#slideTwo .wb-tb{display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0}
+#slideTwo .wb-tb i{display:block;width:100%;height:4%;border-radius:8px 8px 3px 3px;transition:height .5s cubic-bezier(.2,.7,.3,1)}
+#slideTwo .wb-tb.prem i{background:var(--premium)} #slideTwo .wb-tb.comm i{background:var(--commodity)}
+#slideTwo .wb-tb span{font-size:11.5px;font-weight:700;color:var(--wb-ink3);margin-top:7px}
+#slideTwo .wb-tb b{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--wb-ink);font-variant-numeric:tabular-nums}
+#slideTwo .wb-today-tot{margin-top:10px;padding-top:9px;border-top:1px solid var(--wb-line);font-size:12px;color:var(--wb-ink3);display:flex;justify-content:space-between}
+#slideTwo .wb-today-tot b{font-family:var(--mono);color:var(--wb-ink);font-size:14px;font-weight:700}
+#slideTwo .wb-bands{display:flex;flex-direction:column;gap:9px}
+#slideTwo .wb-band{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}
+#slideTwo .wb-band .k{font-size:12px;font-weight:700;color:var(--wb-ink2)}
+#slideTwo .wb-band .k small{display:block;font-weight:500;color:var(--wb-ink3);font-size:11px}
+#slideTwo .wb-band .b{height:30px;border-radius:8px;position:relative;overflow:hidden;background:var(--wb-line)}
+#slideTwo .wb-band .b i{position:absolute;left:0;top:0;height:100%;border-radius:8px;width:0;transition:width .5s cubic-bezier(.2,.7,.3,1)}
+#slideTwo .wb-band .b b{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+#slideTwo .wb-band .b em{position:absolute;top:0;width:2px;height:100%;background:var(--wb-ink)}
+#slideTwo .wb-band.done .b i{background:var(--wb-ink)} #slideTwo .wb-band.open .b i{background:var(--ch-ECOM)} #slideTwo .wb-band.target .b i{background:var(--good)}
+/* small multiples */
+#slideTwo .wb-multi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#slideTwo .wb-sm{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:12px;padding:12px 14px 10px;min-width:0;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#slideTwo .wb-sm:hover{border-color:var(--wb-line2);box-shadow:0 6px 18px rgba(17,24,39,.07)}
+#slideTwo .wb-sm h3{margin:0;font-size:12.5px;font-weight:700;color:var(--wb-ink);display:flex;align-items:center;gap:8px}
+#slideTwo .wb-sm h3 i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+#slideTwo .wb-sm h3 span{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:11.5px;color:var(--wb-ink3)}
+#slideTwo .wb-sm svg{display:block;width:100%;height:auto;margin-top:6px}
+#slideTwo .wb-sm .f{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--wb-ink3);margin-top:4px;white-space:nowrap}
+#slideTwo .wb-sm .f b{font-family:var(--mono);color:var(--wb-ink);font-weight:700}
+#slideTwo .wb-sm .f b.pos{color:var(--good)} #slideTwo .wb-sm .f b.neg{color:var(--bad)}
+#slideTwo .wb-empty{grid-column:1/-1;margin:0;padding:28px 16px;text-align:center;color:var(--wb-ink3);font-size:12.5px;background:var(--wb-card);border:1px dashed var(--wb-line2);border-radius:12px}
+#slideTwo .wb-ax{fill:var(--wb-ink2);font-size:10.5px;font-family:'Inter',system-ui,sans-serif}
+#slideTwo .wb-axn{fill:var(--wb-ink);font-size:10.5px;font-weight:700;font-family:'CPNum',ui-monospace,monospace}
+/* map pane: reuse the existing rsm styles, flatten the card into the pane */
+#slideTwo .wb-mapcard{border-radius:12px}
+#slideTwo .wb-mapcard .rsm-body{grid-template-columns:minmax(0,1fr) 250px}
+#slideTwo #channelGrid{display:none}
+/* narrow */
+@media (max-width:1180px){#slideTwo .wb-multi{grid-template-columns:repeat(2,minmax(0,1fr))}#slideTwo .wb-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){#slideTwo .wb{grid-template-columns:1fr;height:auto}#slideTwo .wb-rail{border-right:0;border-bottom:1px solid var(--wb-line);max-height:none}#slideTwo .wb-row{grid-template-columns:1fr}#slideTwo .wb-mapcard .rsm-body{grid-template-columns:1fr}}
+@media (max-width:600px){#slideTwo .wb-multi,#slideTwo .wb-stats{grid-template-columns:1fr}#slideTwo .wb-canvas{padding-inline:16px}}
+@media (prefers-reduced-motion:reduce){#slideTwo *{transition:none!important;animation:none!important}}
+</style>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -1979,5 +2119,5 @@ window.__CP = {
 {% endcomment %}
 <script src="{% static 'vendor/js/d3-array.min.js' %}" defer></script>
 <script src="{% static 'vendor/js/d3-geo.min.js' %}" defer></script>
-<script src="{% static 'realise/state_map.js' %}?v=14" defer></script>
+<script src="{% static 'realise/state_map.js' %}?v=18" defer></script>
 {% endblock %}

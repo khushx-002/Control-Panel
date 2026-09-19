@@ -153,6 +153,59 @@
     '</div>';
   }
 
+  /* ---- channel-aware map accent -------------------------------------------
+     The map used to be the Ecom green whatever channel was picked, while the
+     channel cards, legend and realise dots each used the channel's own colour.
+     Now the map follows: pick E-Commerce and the states shade in blue, its list
+     bars go blue, the scale goes blue. "All channels" keeps the green - green is
+     the established colour for "everything" on this page. */
+  /* One ramp per channel, derived from the channel's own --ch-* colour (the same
+     hex its card and legend dot use), so map and cards can never disagree.
+     "All channels" has no single hue: each state takes the colour of the channel
+     that sold the most there, and the page chrome (chip, scale, list defaults)
+     goes neutral slate rather than favouring any one channel. */
+  var NEUTRAL_BASE = [71, 85, 105];
+  var CHAN_FALLBACK = { ECOM: '#2a78d6', GT: '#eb6834', MT: '#1baf7a', CSD: '#e87ba4', HORECA: '#7a6ad8', ROI: '#8a97ab', REST: '#8a97ab' };
+  function hexToRgb(h) {
+    h = String(h || '').trim().replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var n = parseInt(h, 16);
+    return isNaN(n) || h.length !== 6 ? null : [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mixRgb(a, b, t) { return [0, 1, 2].map(function (i) { return Math.round(a[i] + (b[i] - a[i]) * t); }); }
+  function rgbStr(c, alpha) { return alpha == null ? 'rgb(' + c.join(',') + ')' : 'rgba(' + c.join(',') + ',' + alpha + ')'; }
+  function chanHex(name) {
+    var el = document.getElementById('slideTwo');
+    var v = el ? getComputedStyle(el).getPropertyValue('--ch-' + name).trim() : '';
+    return v || CHAN_FALLBACK[name] || '';
+  }
+  function rampFrom(base) {
+    var W = [255, 255, 255], K = [0, 0, 0];
+    var light = mixRgb(base, W, 0.86), mid = mixRgb(base, K, 0.12), deep = mixRgb(base, K, 0.35);
+    return { from: light, to: deep, mid: mid, deep: deep, light: light,
+             soft: rgbStr(mixRgb(base, W, 0.90)), brd: rgbStr(mixRgb(base, W, 0.72)),
+             shadow: rgbStr(deep, 0.28), glow: rgbStr(base, 0.55) };
+  }
+  var rampCache = {};
+  function rampFor(name) {
+    if (!name) return rampFrom(NEUTRAL_BASE);
+    if (!rampCache[name]) rampCache[name] = rampFrom(hexToRgb(chanHex(name)) || NEUTRAL_BASE);
+    return rampCache[name];
+  }
+  function activeRamp() { return rampFor(activeChannel); }
+  /* Push the ramp into the CSS variables the map rules read. */
+  function applyMapTheme() {
+    var el = document.getElementById('slideTwo') || document.documentElement;
+    var r = activeRamp();
+    el.style.setProperty('--map-light', rgbStr(r.light));
+    el.style.setProperty('--map-mid', rgbStr(r.mid));
+    el.style.setProperty('--map-deep', rgbStr(r.deep));
+    el.style.setProperty('--map-soft', r.soft);
+    el.style.setProperty('--map-brd', r.brd);
+    el.style.setProperty('--map-shadow', r.shadow);
+    el.style.setProperty('--map-glow', r.glow);
+  }
+
   /* ---- colour ------------------------------------------------------------
      Ecom's green, endpoint for endpoint: rgb(226,243,230) to rgb(21,94,48),
      and #eef1f4 where there are no sales.
@@ -170,14 +223,15 @@
     logMax = Math.log(1 + Math.max(0, maxV));
     if (logMax - logMin < 1e-9) logMax = logMin + 1;   // one state only
   }
-  function colorFor(v) {
+  function colorFor(v, ramp) {
     if (!v || v <= 0) return '#eef1f4';
     var t = (Math.log(1 + v) - logMin) / (logMax - logMin);
     t = Math.max(0, Math.min(1, t));
     /* Never start at the very palest end - the lightest selling state should
        still read as green, not as "no data". */
     t = 0.12 + t * 0.88;
-    var from = [226, 243, 230], to = [21, 94, 48];
+    ramp = ramp || activeRamp();
+    var from = ramp.from, to = ramp.to;
     function mix(a, b) { return Math.round(a + (b - a) * t); }
     return 'rgb(' + mix(from[0], to[0]) + ',' + mix(from[1], to[1]) + ',' + mix(from[2], to[2]) + ')';
   }
@@ -210,6 +264,21 @@
   }
 
   var firstPaint = true;
+  /* Picked channel: its ramp. All channels: the ramp of the state's leading channel. */
+  function fillFor(name, v) {
+    var d = domByState[name];
+    return colorFor(v, (!activeChannel && d && d.channel) ? rampFor(d.channel) : null);
+  }
+  function rowAccent(name) {
+    var d = domByState[name];
+    if (activeChannel || !d || !d.channel) return null;
+    var r = rampFor(d.channel);
+    return { deep: rgbStr(r.deep), mid: rgbStr(r.mid) };
+  }
+  function leadText(name) {
+    var d = domByState[name];
+    return (!activeChannel && d && d.channel) ? ' · ' + channelLabel(d.channel) + ' ' + Math.round(d.share * 100) + '%' : '';
+  }
   function drawMap(byState) {
     var out = ['<g class="rsm-extrude">'];
     for (var i = 0; i < DEPTH; i++) {
@@ -221,7 +290,7 @@
     for (var s = 0; s < geoPaths.length; s++) {
       var p = geoPaths[s], v = byState[p.name] || 0;
       out.push('<path class="rsm-state' + (v > 0 ? ' has-data' : '') + '" data-state="' + p.name +
-               '" fill="' + colorFor(v) + '" style="animation-delay:' + (s * 7) + 'ms" d="' + p.d + '"/>');
+               '" fill="' + fillFor(p.name, v) + '" style="animation-delay:' + (s * 7) + 'ms" d="' + p.d + '"/>');
     }
     out.push('</g>');
     svgEl.innerHTML = out.join('');
@@ -236,7 +305,7 @@
   }
 
   /* ---- hover, in both directions ---- */
-  var values = {};
+  var values = {}, domByState = {};
   function markActive(name) {
     var on = svgEl.querySelectorAll('.rsm-state.is-on');
     for (var i = 0; i < on.length; i++) on[i].classList.remove('is-on');
@@ -255,7 +324,7 @@
     if (!t || !t.classList || !t.classList.contains('rsm-state')) { hideTip(); return; }
     var name = t.getAttribute('data-state'), box = wrapEl.getBoundingClientRect(), v = values[name];
     tipEl.innerHTML = '<b>' + titleCase(name) + '</b><span>' +
-                      (v ? num(v) + ' LTR · click to open' : 'No sales in this range') + '</span>';
+                      (v ? num(v) + ' LTR' + leadText(name) + ' · click to open' : 'No sales in this range') + '</span>';
     tipEl.style.left = (e.clientX - box.left) + 'px';
     tipEl.style.top  = (e.clientY - box.top) + 'px';
     tipEl.classList.add('show');
@@ -275,15 +344,16 @@
     }
     var top = rows[0].value || 1, html = '';
     for (var i = 0; i < rows.length; i++) {
-      var pct = Math.max(2, Math.round(rows[i].value / top * 100));
+      var pct = Math.max(2, Math.round(rows[i].value / top * 100)), acc = rowAccent(rows[i].name);
       /* No role="button" here on purpose. base.html gives every [role="button"]
          a 1px border, which boxed each row in the list. These are list rows that
          happen to be clickable, not buttons; tabindex keeps them reachable by
          keyboard and the Enter/Space handler below still opens them. */
       html += '<div class="rsm-row" tabindex="0" data-state="' + rows[i].name + '">' +
                 '<span class="rsm-row-name">' + esc(titleCase(rows[i].name)) + '</span>' +
-                '<span class="rsm-row-val">' + num(rows[i].value) + '</span>' +
-                '<span class="rsm-row-bar"><i style="width:' + pct + '%;animation-delay:' + (i * 26) + 'ms"></i></span>' +
+                '<span class="rsm-row-val"' + (acc ? ' style="color:' + acc.deep + '"' : '') + '>' + num(rows[i].value) + '</span>' +
+                '<span class="rsm-row-bar"><i style="width:' + pct + '%;animation-delay:' + (i * 26) + 'ms'
+                  + (acc ? ';background:linear-gradient(90deg,' + acc.mid + ',' + acc.deep + ')' : '') + '"></i></span>' +
               '</div>';
     }
     listEl.innerHTML = html;
@@ -760,6 +830,7 @@
     if (typeof getFilteredChannelRows !== 'function') return;
     var all = getFilteredChannelRows() || [];
     buildTabs(all);
+    applyMapTheme();
     var rows = rowsFor(all, activeChannel);
     if (subEl) {
       subEl.textContent = activeChannel
@@ -774,6 +845,25 @@
       if (!key || key === 'UNKNOWN') continue;
       if (agg[key] === undefined) { agg[key] = 0; order.push(key); }
       agg[key] += Number(rows[i].liter) || 0;
+    }
+    /* Which channel leads in each state - drives the All-channels colouring. */
+    domByState = {};
+    if (!activeChannel) {
+      var memberOf = {};
+      blocks().forEach(function (b) { b.members.forEach(function (m) { memberOf[String(m).toUpperCase()] = b.name; }); });
+      var per = {};
+      for (var q = 0; q < rows.length; q++) {
+        var r2 = rows[q], k2 = norm(typeof canonState === 'function' ? canonState(r2.state) : r2.state);
+        if (!k2 || k2 === 'UNKNOWN') continue;
+        var ch = memberOf[String(r2.u_main_group || '').trim().toUpperCase()] || 'REST';
+        per[k2] = per[k2] || {};
+        per[k2][ch] = (per[k2][ch] || 0) + (Number(r2.liter) || 0);
+      }
+      Object.keys(per).forEach(function (k3) {
+        var best = null, bestV = -1, tot = 0;
+        Object.keys(per[k3]).forEach(function (c2) { tot += per[k3][c2]; if (per[k3][c2] > bestV) { bestV = per[k3][c2]; best = c2; } });
+        domByState[k3] = { channel: best, share: tot ? bestV / tot : 0 };
+      });
     }
     var list = order.map(function (k) { return { name: k, value: agg[k] }; })
                     .filter(function (r) { return r.value > 0; })
@@ -823,6 +913,201 @@
      renderSlideTwo, so listen to it as well. */
   var seg = document.getElementById('sc2Segment');
   if (seg) seg.addEventListener('change', schedule);
+
+
+  /* =========================================================================
+     WORKBENCH panes. Everything here reads what the page already has:
+     dashboard.js fills the KPI ids, state_map.js has the channel rows, and
+     fetchExtra() brings targets + open orders. Nothing is fetched twice.
+     ========================================================================= */
+  var CH_COL = { ECOM:'--ch-ECOM', GT:'--ch-GT', MT:'--ch-MT', CSD:'--ch-CSD', HORECA:'--ch-HORECA', ROI:'--ch-ROI', REST:'--ch-REST' };
+  var slideEl = document.getElementById('slideTwo');
+  function tok(v) { return slideEl ? getComputedStyle(slideEl).getPropertyValue(v).trim() : ''; }
+  function chCol(name) { return tok(CH_COL[name] || '--ch-ROI'); }
+  function lakh(n) { return n >= 1e5 ? (n / 1e5).toFixed(2).replace(/\.?0+$/, '') + ' L' : num(n); }
+  function parseNum(t) { var v = parseFloat(String(t || '').replace(/[^0-9.\-]/g, '')); return isFinite(v) ? v : 0; }
+
+  /* ---- tabs ---- */
+  var tabBtns = document.querySelectorAll('#slideTwo .wb-tabs button');
+  tabBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      tabBtns.forEach(function (x) { x.classList.remove('on'); x.setAttribute('aria-selected', 'false'); });
+      b.classList.add('on'); b.setAttribute('aria-selected', 'true');
+      document.querySelectorAll('#slideTwo .wb-pane').forEach(function (p) { p.classList.toggle('on', p.id === b.dataset.pane); });
+      try { localStorage.setItem('cp:realise:wbTab', b.dataset.pane); } catch (e) {}
+    });
+  });
+  try {
+    var savedTab = localStorage.getItem('cp:realise:wbTab');
+    var tb = savedTab && document.querySelector('#slideTwo .wb-tabs button[data-pane="' + savedTab + '"]');
+    if (tb) tb.click();
+  } catch (e) {}
+
+  /* ---- segment buttons drive the hidden <select> dashboard.js reads ---- */
+  var segSel = document.getElementById('sc2Segment');
+  document.querySelectorAll('#wbSegs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!segSel) return;
+      segSel.value = b.dataset.v;
+      segSel.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelectorAll('#wbSegs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    });
+  });
+
+  /* ---- KPI tiles: bars from the values dashboard.js writes ---- */
+  function wbKpis() {
+    var t = parseNum((document.getElementById('sc2KpiTarget') || {}).textContent);
+    var d = parseNum((document.getElementById('sc2KpiDone') || {}).textContent);
+    var o = parseNum((document.getElementById('sc2KpiOih') || {}).textContent);
+    var b = parseNum((document.getElementById('sc2KpiBal') || {}).textContent);
+    var max = Math.max(t, d, o, Math.abs(b), 1);
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, v / max * 100)) + '%'; };
+    set('wbBarTarget', t); set('wbBarDone', d); set('wbBarOih', o); set('wbBarBal', Math.abs(b));
+    var bal = document.getElementById('sc2KpiBal');
+    if (bal) { bal.classList.toggle('neg', b < 0); bal.classList.toggle('pos', b > 0); }
+    /* pipeline bands */
+    var pipe = document.getElementById('wbPipe');
+    if (pipe) {
+      var pm = Math.max(t, d, o, 1);
+      var rows = [['done', 'Done', 'shipped', d], ['open', 'Open orders', 'not yet shipped', o], ['target', 'Target', 'for the month', t]];
+      pipe.innerHTML = rows.map(function (r) {
+        return '<div class="wb-band ' + r[0] + '"><div class="k">' + r[1] + '<small>' + r[2] + '</small></div>' +
+          '<div class="b"><i style="width:' + (r[3] / pm * 100) + '%"></i><b>' + (r[3] ? lakh(r[3]) : '—') + '</b>' +
+          (r[0] !== 'target' && t ? '<em style="left:' + (t / pm * 100) + '%"></em>' : '') + '</div></div>';
+      }).join('');
+    }
+    /* today bars */
+    var pr = parseNum((document.getElementById('sc2TodayPrem') || {}).textContent);
+    var co = parseNum((document.getElementById('sc2TodayComm') || {}).textContent);
+    var tm = Math.max(pr, co, 1);
+    var pb = document.getElementById('wbTodayPremBar'), cb = document.getElementById('wbTodayCommBar');
+    if (pb) pb.style.height = Math.max(4, pr / tm * 100) + '%';
+    if (cb) cb.style.height = Math.max(4, co / tm * 100) + '%';
+  }
+  /* dashboard.js writes those spans directly; watch them rather than patch it */
+  var kpiHost = document.getElementById('channelKpis'), todayHost = document.querySelector('#slideTwo .wb-today');
+  var kpiTimer = null;
+  function kpiSoon() { clearTimeout(kpiTimer); kpiTimer = setTimeout(wbKpis, 60); }
+  if (window.MutationObserver) {
+    var mo = new MutationObserver(kpiSoon);
+    if (kpiHost) mo.observe(kpiHost, { childList: true, subtree: true, characterData: true });
+    if (todayHost) mo.observe(todayHost, { childList: true, subtree: true, characterData: true });
+  }
+  kpiSoon();
+
+  /* ---- channel small multiples + realise pane ---- */
+  function wbLeaves(all, extra) {
+    /* per channel -> per state: done, doneValue, open */
+    var out = {};
+    blocks().forEach(function (b) {
+      var rows = rowsFor(all, b.name);
+      var st = {};
+      rows.forEach(function (r) {
+        var k = norm(typeof canonState === 'function' ? canonState(r.state) : r.state);
+        if (!k || k === 'UNKNOWN') return;
+        st[k] = st[k] || { name: k, done: 0, val: 0, open: 0 };
+        st[k].done += Number(r.liter) || 0; st[k].val += Number(r.line_total) || 0;
+      });
+      var members = {}; b.members.forEach(function (m) { members[String(m).toUpperCase()] = 1; });
+      var segNow = (typeof sc2Seg === 'function') ? String(sc2Seg() || '').toUpperCase() : '';
+      ((extra && extra.oih) || []).forEach(function (x) {
+        if (!members[String(x.main_group || '').trim().toUpperCase()]) return;
+        if (segNow && String(x.u_type || '').toUpperCase() !== segNow) return;
+        var k = norm(typeof canonState === 'function' ? canonState(x.state) : x.state);
+        if (!k || k === 'UNKNOWN') return;
+        st[k] = st[k] || { name: k, done: 0, val: 0, open: 0 };
+        st[k].open += Number(x.open_qty) || 0;
+      });
+      var list = Object.keys(st).map(function (k) { return st[k]; }).filter(function (r) { return r.done || r.open; })
+                       .sort(function (a, b2) { return b2.done - a.done; });
+      var done = list.reduce(function (a, r) { return a + r.done; }, 0);
+      var val = list.reduce(function (a, r) { return a + r.val; }, 0);
+      var open = list.reduce(function (a, r) { return a + r.open; }, 0);
+      if (done || open) out[b.name] = { name: b.name, states: list, done: done, val: val, open: open, rate: done ? val / done : 0 };
+    });
+    return out;
+  }
+
+  function smallSvg(ch, color, SMAX) {
+    var W = 300, H = 118, l = 96, r = 8, T0 = 6, rows = ch.states.slice(0, 4), step = (H - T0) / Math.max(rows.length, 1);
+    var x = function (v) { return l + (W - l - r) * Math.sqrt(Math.min(1, v / SMAX)); };
+    var out = '';
+    rows.forEach(function (sRow, i) {
+      var y = T0 + step * i, bh = Math.min(8, (step - 10) / 2);
+      out += '<text class="wb-ax" x="' + (l - 8) + '" y="' + (y + bh + 5) + '" text-anchor="end">' + esc(titleCase(sRow.name)) + '</text>' +
+        '<rect x="' + l + '" y="' + y + '" width="' + Math.max(2, x(sRow.done) - l) + '" height="' + bh + '" rx="3" fill="' + color + '"><title>' + esc(titleCase(sRow.name)) + ' · done ' + num(sRow.done) + ' L</title></rect>' +
+        '<rect x="' + l + '" y="' + (y + bh + 2) + '" width="' + Math.max(2, x(sRow.open) - l) + '" height="' + bh + '" rx="3" fill="' + color + '" opacity=".3"><title>' + esc(titleCase(sRow.name)) + ' · open ' + num(sRow.open) + ' L</title></rect>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(channelLabel(ch.name)) + ' by state">' + out + '</svg>';
+  }
+
+  function wbRender(all, extra) {
+    var multi = document.getElementById('wbMulti'), rl = document.getElementById('wbRealiseMulti');
+    if (!multi || !rl) return;
+    var data = wbLeaves(all, extra);
+    var names = Object.keys(data).filter(function (k) { return !activeChannel || k === activeChannel; });
+    if (!names.length) {
+      multi.innerHTML = '<p class="wb-empty">No channel rows in this range.</p>';
+      rl.innerHTML = '<p class="wb-empty">No channel rows in this range.</p>';
+      return;
+    }
+    var tot = names.reduce(function (a, k) { return a + data[k].done; }, 0) || 1;
+    var SMAX = Math.max.apply(null, names.map(function (k) { return Math.max.apply(null, data[k].states.map(function (s2) { return Math.max(s2.done, s2.open); })); }).concat([1]));
+    var target = parseNum((document.getElementById('sc2KpiTargetRealise') || {}).textContent) || 0;
+    multi.innerHTML = names.sort(function (a, b) { return data[b].done - data[a].done; }).map(function (k) {
+      var c = data[k], col = chCol(k);
+      return '<article class="wb-sm" data-ch="' + k + '" title="Focus ' + esc(channelLabel(k)) + '">' +
+        '<h3><i style="background:' + col + '"></i>' + esc(channelLabel(k)) + '<span>' + (c.done / tot * 100).toFixed(1) + '%</span></h3>' +
+        smallSvg(c, col, SMAX) +
+        '<div class="f"><span>done <b>' + lakh(c.done) + '</b></span><span>open <b>' + lakh(c.open) + '</b></span>' +
+        '<span>₹/L <b class="' + (target ? (c.rate >= target ? 'pos' : 'neg') : '') + '">' + (c.rate ? c.rate.toFixed(0) : '—') + '</b></span></div></article>';
+    }).join('');
+    /* a card focuses that channel, same as clicking its legend row */
+    multi.querySelectorAll('.wb-sm').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var row = document.querySelector('#rsmTabs .rsm-tab[data-ch="' + card.dataset.ch + '"]');
+        if (row) row.click();
+      });
+    });
+
+    /* realise pane: lollipops per channel, plus best / weakest states */
+    var byState = {};
+    names.forEach(function (k) { data[k].states.forEach(function (s2) { byState[s2.name] = byState[s2.name] || { name: s2.name, done: 0, val: 0 }; byState[s2.name].done += s2.done; byState[s2.name].val += s2.val; }); });
+    var states = Object.keys(byState).map(function (k) { return byState[k]; }).filter(function (r) { return r.done > 0 && r.val > 0; })
+                       .map(function (r) { return { name: r.name, rate: r.val / r.done }; }).sort(function (a, b) { return b.rate - a.rate; });
+    var avg = names.reduce(function (a, k) { return a + data[k].val; }, 0) / (names.reduce(function (a, k) { return a + data[k].done; }, 0) || 1);
+    var groups = [
+      { k: 'By channel', rows: names.map(function (k) { return [channelLabel(k), data[k].rate, chCol(k)]; }).filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }) },
+      { k: 'Highest states', rows: states.slice(0, 5).map(function (r) { return [titleCase(r.name), r.rate, tok('--good')]; }) },
+      { k: 'Weakest states', rows: states.slice(-5).reverse().map(function (r) { return [titleCase(r.name), r.rate, tok('--bad')]; }) }
+    ];
+    var cap = Math.max(320, Math.ceil((avg * 1.8) / 50) * 50);
+    rl.innerHTML = groups.map(function (g) {
+      var Wd = 300, Hd = Math.max(90, g.rows.length * 26 + 16), ld = 104, iwd = Wd - ld - 56;
+      var xv = function (v) { return ld + iwd * Math.min(v, cap) / cap; };
+      var q = target ? '<line x1="' + xv(target) + '" x2="' + xv(target) + '" y1="4" y2="' + (Hd - 10) + '" stroke="' + tok('--wb-ink3') + '" stroke-dasharray="3 4"/>' : '';
+      g.rows.forEach(function (r2, i) {
+        var y = 12 + i * 26, base = target ? xv(target) : ld;
+        q += '<text class="wb-ax" x="' + (ld - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + esc(r2[0]) + '</text>' +
+          '<line x1="' + base + '" x2="' + xv(r2[1]) + '" y1="' + y + '" y2="' + y + '" stroke="' + r2[2] + '" stroke-width="3" stroke-linecap="round"/>' +
+          '<circle cx="' + xv(r2[1]) + '" cy="' + y + '" r="5" fill="' + r2[2] + '" stroke="#fff" stroke-width="2"><title>' + esc(r2[0]) + ' · ₹' + r2[1].toFixed(2) + ' per litre</title></circle>' +
+          '<text class="wb-axn" x="' + (xv(r2[1]) + 10) + '" y="' + (y + 4) + '">₹' + num(r2[1]) + (r2[1] > cap ? ' ▸' : '') + '</text>';
+      });
+      return '<article class="wb-sm" style="cursor:default"><h3>' + g.k + (g.k === 'By channel' ? '<span>avg ₹' + avg.toFixed(2) + '</span>' : '') + '</h3>' +
+        '<svg viewBox="0 0 ' + Wd + ' ' + Hd + '" role="img" aria-label="' + g.k + '">' + q + '</svg></article>';
+    }).join('');
+    var osub = document.getElementById('wbOverviewSub');
+    if (osub) osub.textContent = (activeChannel ? channelLabel(activeChannel) + ' only' : 'All channels') + ' · done vs open, one scale across every card';
+  }
+
+  /* hook: every time the map rebuilds, rebuild the panes from the same rows */
+  var _wbOrigBuild = build;
+  build = function () {
+    _wbOrigBuild.apply(this, arguments);
+    if (typeof getFilteredChannelRows !== 'function') return;
+    var all = getFilteredChannelRows() || [];
+    fetchExtra().then(function (extra) { wbRender(all, extra); wbKpis(); });
+  };
 
   schedule();
 })();
