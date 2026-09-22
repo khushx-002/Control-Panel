@@ -748,6 +748,12 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
           <button type="button" class="on" data-pane="wbOverview" role="tab" aria-selected="true">Overview</button>
           <button type="button" data-pane="wbMap" role="tab" aria-selected="false">Map</button>
           <button type="button" data-pane="wbRealise" role="tab" aria-selected="false">Realise</button>
+          {# Sits on the tab row, not inside a pane: it governs Overview, Map and Realise alike. #}
+          <span class="wb-unit" id="qtyUnitSeg" role="group" aria-label="Quantity unit"
+                title="Show quantity in metric tonnes or litres">
+            <button type="button" data-qu="mt" class="on" onclick="setQtyUnit('mt')">MT</button>
+            <button type="button" data-qu="ltr" onclick="setQtyUnit('ltr')">Litres</button>
+          </span>
         </div>
 
         {# ---------------- Overview ---------------- #}
@@ -761,25 +767,25 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
           <div class="wb-stats" id="channelKpis">
             <div class="wb-stat k-target">
               <span class="wb-stat-l">Target</span>
-              <div class="wb-stat-v"><b id="sc2KpiTarget">&mdash;</b><small>LTR</small></div>
+              <div class="wb-stat-v"><b id="sc2KpiTarget">&mdash;</b><small class="js-qu">MT</small></div>
               <div class="wb-bar"><i id="wbBarTarget"></i></div>
               <div class="wb-stat-f" id="sc2KpiTargetRealise">&mdash;</div>
             </div>
             <div class="wb-stat k-done sc2-kpi-click" onclick="openMetricWindow('done')" title="Open Done breakdown">
               <span class="wb-stat-l">Done</span>
-              <div class="wb-stat-v"><b id="sc2KpiDone">&mdash;</b><small>LTR</small></div>
+              <div class="wb-stat-v"><b id="sc2KpiDone">&mdash;</b><small class="js-qu">MT</small></div>
               <div class="wb-bar"><i id="wbBarDone"></i></div>
               <div class="wb-stat-f" id="sc2KpiDoneRealise">&mdash;</div>
             </div>
             <div class="wb-stat k-oih sc2-kpi-click sc2-range-card" onclick="openOihWindow()" title="Open OIH breakdown">
               <span class="wb-stat-l">Open orders</span>
-              <div class="wb-stat-v"><b id="sc2KpiOih">&mdash;</b><small>LTR</small></div>
+              <div class="wb-stat-v"><b id="sc2KpiOih">&mdash;</b><small class="js-qu">MT</small></div>
               <div class="wb-bar"><i id="wbBarOih"></i></div>
               <div class="wb-stat-f" id="sc2KpiOihRealise">&mdash;</div>
             </div>
             <div class="wb-stat k-bal sc2-kpi-click sc2-range-card" onclick="openMetricWindow('balance')" title="Open Balance breakdown">
               <span class="wb-stat-l">Balance</span>
-              <div class="wb-stat-v"><b id="sc2KpiBal">&mdash;</b><small>LTR</small></div>
+              <div class="wb-stat-v"><b id="sc2KpiBal">&mdash;</b><small class="js-qu">MT</small></div>
               <div class="wb-bar"><i id="wbBarBal"></i></div>
               <div class="wb-stat-f" id="sc2KpiBalRealise" title="Bal realise — the ₹ per litre still needed on the remaining litres to reach the target revenue">&mdash;</div>
             </div>
@@ -812,13 +818,29 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
               <div class="rsm-map" id="rsmWrap" data-geo-url="{% static 'core/geo/india_states.geojson' %}">
                 <div class="rsm-empty" id="rsmEmpty">Fetch a date range and the map fills in.</div>
                 <svg class="rsm-svg" id="rsmSvg" viewBox="0 0 600 680" role="img" aria-label="India map shaded by litres sold per state" hidden></svg>
-                <div class="rsm-stats" id="rsmStats"></div>
-                <div class="rsm-zonebox" id="rsmZones"></div>
+                {# Zoom: + / - / home. Wheel and drag work on the map too - see state_map.js. #}
+                <div class="rsm-zoom" role="group" aria-label="Zoom">
+                  <button type="button" data-z="in" title="Zoom in" aria-label="Zoom in">+</button>
+                  <button type="button" data-z="out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+                  <button type="button" data-z="home" title="Reset view" aria-label="Reset view">&#8962;</button>
+                </div>
+                {# The left margin: channel mix donut, then open orders, then realise. #}
+                {% comment %}
+                  Channel mix, bottom-right, where the map leaves open sea. No card
+                  frame on purpose: it reads as part of the map, not a box on it.
+                {% endcomment %}
+                <div class="rsm-corner">
+                  <div class="rsm-donut" id="rsmDonut"></div>
+                </div>
+                <div class="rsm-left">
+                  <div class="rsm-stats" id="rsmStats"></div>
+                  <div class="rsm-zonebox" id="rsmZones"></div>
+                </div>
                 <div class="rsm-scale" id="rsmScale" hidden><span>Less</span><i></i><span>More</span></div>
                 <div class="rsm-tip" id="rsmTip"></div>
               </div>
               <aside class="rsm-side">
-                <h4>States by litres</h4>
+                <h4>States by litres <span class="rsm-side-hint">click a state for details</span></h4>
                 <div id="rsmList"><p class="rsm-empty-note">The list fills in once data loads.</p></div>
               </aside>
             </div>
@@ -988,10 +1010,16 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
   .rsm-side h4{
     font-size:11px;font-weight:800;color:#6f8578;letter-spacing:.04em;
     padding-bottom:9px;border-bottom:1px solid #e6f1ea;margin-bottom:4px;
+    display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
   }
+  /* Quieter than the heading it sits beside - a note, not a second title. */
+  .rsm-side-hint{font-size:10px;font-weight:600;color:#9bb0a4;letter-spacing:0;text-transform:none}
   .rsm-row{
     display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;
-    padding:8px 10px 8px 0;border-bottom:1px solid #eef5f1;
+    /* Left padding matched to the right. It used to be 0, and the row's hover/selected
+       fill starts at the row edge - so the state name sat flush against the edge of its
+       own highlight with no air at all. */
+    padding:8px 10px;border-bottom:1px solid #eef5f1;
   }
   .rsm-row:last-child{border-bottom:0}
   .rsm-row:hover,.rsm-row.is-on{background:var(--map-soft,#e8f6ed);border-radius:8px}
@@ -1004,7 +1032,9 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     animation:rsmGrow .6s cubic-bezier(.2,.7,.3,1) backwards}
   @keyframes rsmGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   .rsm-empty-note{font-size:12.5px;color:#6f8578;padding:18px 10px 0;line-height:1.7}
-  .rsm-state.has-data{cursor:pointer}
+  /* Not a pointer any more: the map reads out, it does not open. A hand cursor on
+     something that does nothing when clicked is a promise the page cannot keep. */
+  .rsm-state.has-data{cursor:default}
   .rsm-row{cursor:pointer}
   .rsm-row:focus-visible{outline:2px solid #155e30;outline-offset:-2px;border-radius:8px}
 
@@ -2018,6 +2048,12 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 #slideTwo .wb-tabs button{border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--wb-ink3);padding:9px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;border-radius:0}
 #slideTwo .wb-tabs button.on{color:var(--wb-ink);border-bottom-color:var(--wb-ink)}
 #slideTwo .wb-tabs button:focus-visible{outline:2px solid var(--wb-ink);outline-offset:-2px}
+/* Right end of the tab row - a setting for the whole view, not a fourth tab. */
+#slideTwo .wb-tabs .wb-unit{margin-left:auto;display:inline-flex;align-self:center;gap:2px;
+  background:#fff;border:1px solid var(--wb-line);border-radius:9px;padding:2px;margin-bottom:6px}
+#slideTwo .wb-tabs .wb-unit button{border:0;background:transparent;font:inherit;font-size:11.5px;
+  font-weight:700;color:var(--wb-ink3);padding:5px 11px;border-radius:7px;margin:0;cursor:pointer}
+#slideTwo .wb-tabs .wb-unit button.on{background:var(--wb-ink);color:#fff}
 #slideTwo .wb-pane{display:none}#slideTwo .wb-pane.on{display:block}
 #slideTwo .wb-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px}
 #slideTwo .wb-hd.small{margin-top:18px}
@@ -2079,6 +2115,55 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 #slideTwo .wb-ax{fill:var(--wb-ink2);font-size:10.5px;font-family:'Inter',system-ui,sans-serif}
 #slideTwo .wb-axn{fill:var(--wb-ink);font-size:10.5px;font-weight:700;font-family:'CPNum',ui-monospace,monospace}
 /* map pane: reuse the existing rsm styles, flatten the card into the pane */
+  /* ---- zoom controls + the left column ----------------------------------- */
+  #slideTwo .rsm-zoom{position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6}
+  #slideTwo .rsm-zoom button{width:34px;height:34px;border:1px solid var(--wb-line2);background:#fff;border-radius:9px;
+    font:inherit;font-size:17px;font-weight:700;line-height:1;color:var(--wb-ink2);cursor:pointer;
+    box-shadow:0 1px 2px rgba(17,24,39,.06);transition:background .15s,color .15s,border-color .15s}
+  #slideTwo .rsm-zoom button:hover{background:var(--wb-bg);color:var(--wb-ink);border-color:var(--wb-ink3)}
+  #slideTwo .rsm-zoom button:focus-visible{outline:2px solid var(--wb-ink);outline-offset:2px}
+  #slideTwo .rsm-svg{cursor:grab;touch-action:none}
+  #slideTwo .rsm-svg.is-dragging{cursor:grabbing}
+  /* one scrollable column replaces the two absolutely-placed panels */
+  #slideTwo .rsm-left{position:absolute;left:14px;top:14px;bottom:34px;width:216px;max-width:38%;
+    display:flex;flex-direction:column;gap:10px;overflow-y:auto;z-index:4;pointer-events:none;scrollbar-width:thin}
+  #slideTwo .rsm-left>*{position:static;width:auto;max-width:none;pointer-events:auto;flex:0 0 auto}
+  /* The two left panels are frameless too, like the donut: no box, no border, no
+     shadow - the figures sit straight on the map view. The hairline under each
+     heading stays, so title and rows still read as one group, and the gap between
+     the groups grows a little to do the job the box edges used to. */
+  #slideTwo .rsm-left{gap:18px}
+  /* Realise per litre sits at the BOTTOM-left of the map; Open orders keeps the
+     top-left. margin-top:auto pushes it down the flex column, so the two read
+     as separate corners instead of one stack. */
+  #slideTwo .rsm-left .rsm-zonebox{margin-top:auto}
+  #slideTwo .rsm-left .rsm-mini{background:none;border:0;box-shadow:none;padding:0;border-radius:0}
+  /* the channel-mix donut */
+  /* bottom-right corner: sits over the empty sea south-east of the mainland,
+     above the scale bar. Frameless - it is part of the map view, not a card. */
+  #slideTwo .rsm-corner{position:absolute;right:14px;bottom:34px;z-index:4;max-width:46%;pointer-events:auto}
+  #slideTwo .rsm-donut{background:none;border:0;box-shadow:none;padding:0}
+  #slideTwo .rsm-donut h4{border:0;padding:0;margin:0 0 6px;justify-content:flex-start;gap:10px}
+  #slideTwo .rsm-donut .dn{display:grid;grid-template-columns:110px minmax(150px,1fr);gap:12px;align-items:center}
+  #slideTwo .rsm-donut svg{width:110px;height:110px;display:block}
+  #slideTwo .rsm-donut .dn-c{font-size:17px;font-weight:800;fill:var(--wb-ink);font-family:var(--mono)}
+  #slideTwo .rsm-donut .dn-l{font-size:8px;font-weight:800;fill:var(--wb-ink3);letter-spacing:.06em}
+  #slideTwo .rsm-donut .lg{display:flex;flex-direction:column;gap:3px;min-width:0}
+  #slideTwo .rsm-donut .lg button{display:grid;grid-template-columns:9px 1fr auto;gap:7px;align-items:center;text-align:left;
+    border:1px solid transparent;background:none;border-radius:6px;padding:3px 5px;font:inherit;font-size:11.5px;font-weight:600;
+    color:var(--wb-ink2);cursor:pointer;white-space:nowrap;min-width:0}
+  #slideTwo .rsm-donut .lg button span{overflow:hidden;text-overflow:ellipsis}
+  #slideTwo .rsm-donut .lg button b{font-family:var(--mono);font-weight:700;color:var(--wb-ink)}
+  #slideTwo .rsm-donut .lg button i{width:9px;height:9px;border-radius:50%;display:block}
+  #slideTwo .rsm-donut .lg button:hover{background:var(--wb-bg)}
+  #slideTwo .rsm-donut .lg button.is-on{background:var(--wb-bg);border-color:var(--wb-line2)}
+  #slideTwo .rsm-donut path{cursor:pointer;transition:opacity .15s}
+  #slideTwo .rsm-donut path.dim{opacity:.35}
+  @media (max-width:1150px){
+    #slideTwo .rsm-left{position:static;width:auto;max-width:none;margin:0 0 10px;overflow:visible}
+    #slideTwo .rsm-corner{position:static;max-width:none;margin:10px 0 0}
+    #slideTwo .rsm-zoom{top:8px;right:8px}
+  }
 #slideTwo .wb-mapcard{border-radius:12px}
 #slideTwo .wb-mapcard .rsm-body{grid-template-columns:minmax(0,1fr) 250px}
 #slideTwo #channelGrid{display:none}
@@ -2111,7 +2196,13 @@ window.__CP = {
   the template around it is already new - which shows up as a KPI that never fills
   in. Bump this number whenever dashboard.js changes.
 {% endcomment %}
-<script src="{% static 'realise/dashboard.js' %}?v=40" defer></script>
+{% comment %}
+Median kg per litre (services.get_item_kg_per_litre). Used only for figures that
+   are already totalled litres - targets - where a per-item factor cannot apply.
+   Anything that came off a row is converted per item on the server instead.
+{% endcomment %}
+<script>var MT_KGL = {{ mt_kgl|default:"0.98" }};</script>
+<script src="{% static 'realise/dashboard.js' %}?v=41" defer></script>
 {% comment %}
   State map. d3-geo only turns the geojson outlines into SVG path data - the
   look is CSS. Both are deferred, so they run in order after dashboard.js and
@@ -2119,5 +2210,5 @@ window.__CP = {
 {% endcomment %}
 <script src="{% static 'vendor/js/d3-array.min.js' %}" defer></script>
 <script src="{% static 'vendor/js/d3-geo.min.js' %}" defer></script>
-<script src="{% static 'realise/state_map.js' %}?v=18" defer></script>
+<script src="{% static 'realise/state_map.js' %}?v=25" defer></script>
 {% endblock %}

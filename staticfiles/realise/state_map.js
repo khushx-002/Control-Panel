@@ -13,6 +13,10 @@
    no 3D library involved.
    =========================================================================== */
 (function () {
+  /* Quantity accessor shared with the dashboard (dashboard.js, loaded before this
+     file). Falls back to litres if it is ever missing, so the map still draws. */
+  var QTY = (typeof window.QTY === 'function') ? window.QTY
+          : function (r) { return Number(r && r.liter) || 0; };
   'use strict';
 
   var VB_W = 600, VB_H = 680, DEPTH = 9;
@@ -294,6 +298,7 @@
     }
     out.push('</g>');
     svgEl.innerHTML = out.join('');
+    applyZoom();      /* keep the current zoom and re-space the walls */
     svgEl.hidden = false;
     if (scaleEl) scaleEl.hidden = false;
     emptyEl.style.display = 'none';
@@ -319,12 +324,67 @@
   }
   function hideTip() { tipEl.classList.remove('show'); markActive(null); }
 
+  /* ---- zoom and pan ---------------------------------------------------------
+     Done with the SVG viewBox: zooming shows a smaller window of the same
+     600x680 drawing, so nothing is redrawn. The raised walls are re-spaced by
+     1/k so their on-screen thickness stays constant instead of growing with
+     the zoom. Buttons zoom about the centre; the wheel zooms about the cursor;
+     drag pans. A drag that moved the mouse is not a click, so it never opens
+     a state by accident. */
+  var VB = { x: 0, y: 0, w: VB_W, h: VB_H }, zoomK = 1, dragged = false;
+  function applyZoom() {
+    svgEl.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h);
+    var walls = svgEl.querySelectorAll('.rsm-extrude > g');
+    for (var i = 0; i < walls.length; i++) walls[i].setAttribute('transform', 'translate(0,' + ((DEPTH - i) / zoomK) + ')');
+  }
+  function zoomAt(factor, cx, cy) {              /* cx, cy in viewBox units */
+    var k = Math.max(1, Math.min(8, zoomK * factor)); factor = k / zoomK; if (factor === 1) return;
+    zoomK = k;
+    var nw = VB_W / k, nh = VB_H / k;
+    VB.x = cx - (cx - VB.x) / factor; VB.y = cy - (cy - VB.y) / factor; VB.w = nw; VB.h = nh;
+    VB.x = Math.max(0, Math.min(VB_W - nw, VB.x)); VB.y = Math.max(0, Math.min(VB_H - nh, VB.y));
+    applyZoom();
+  }
+  function zoomHome() { zoomK = 1; VB = { x: 0, y: 0, w: VB_W, h: VB_H }; applyZoom(); }
+  function toVB(e) {                              /* mouse -> viewBox units */
+    var r = svgEl.getBoundingClientRect();
+    return { x: VB.x + (e.clientX - r.left) / r.width * VB.w, y: VB.y + (e.clientY - r.top) / r.height * VB.h, r: r };
+  }
+  var zoomBox = wrapEl.querySelector('.rsm-zoom');
+  if (zoomBox) zoomBox.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-z]') : null; if (!b) return;
+    var z = b.getAttribute('data-z');
+    if (z === 'home') zoomHome(); else zoomAt(z === 'in' ? 1.4 : 1 / 1.4, VB.x + VB.w / 2, VB.y + VB.h / 2);
+  });
+  svgEl.addEventListener('wheel', function (e) {
+    if (svgEl.hidden) return;
+    e.preventDefault(); var p = toVB(e); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, p.x, p.y);
+  }, { passive: false });
+  var drag = null;
+  svgEl.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, vx: VB.x, vy: VB.y, r: svgEl.getBoundingClientRect() }; dragged = false;
+    try { svgEl.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  svgEl.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!dragged && Math.abs(dx) + Math.abs(dy) < 4) return;
+    dragged = true; svgEl.classList.add('is-dragging'); hideTip();
+    VB.x = Math.max(0, Math.min(VB_W - VB.w, drag.vx - dx / drag.r.width * VB.w));
+    VB.y = Math.max(0, Math.min(VB_H - VB.h, drag.vy - dy / drag.r.height * VB.h));
+    applyZoom();
+  });
+  function endDrag() { drag = null; svgEl.classList.remove('is-dragging'); }
+  svgEl.addEventListener('pointerup', endDrag); svgEl.addEventListener('pointercancel', endDrag); svgEl.addEventListener('pointerleave', endDrag);
+
   svgEl.addEventListener('mousemove', function (e) {
     var t = e.target;
     if (!t || !t.classList || !t.classList.contains('rsm-state')) { hideTip(); return; }
     var name = t.getAttribute('data-state'), box = wrapEl.getBoundingClientRect(), v = values[name];
     tipEl.innerHTML = '<b>' + titleCase(name) + '</b><span>' +
-                      (v ? num(v) + ' LTR' + leadText(name) + ' · click to open' : 'No sales in this range') + '</span>';
+                      (v ? num(v) + ' ' + (typeof QU === 'function' ? QU() : 'LTR') + leadText(name)
+                         : 'No sales in this range') + '</span>';
     tipEl.style.left = (e.clientX - box.left) + 'px';
     tipEl.style.top  = (e.clientY - box.top) + 'px';
     tipEl.classList.add('show');
@@ -505,11 +565,11 @@
     if (!rows.length) return;
 
     var litres = 0, value = 0;
-    rows.forEach(function (r) { litres += Number(r.liter) || 0; value += Number(r.line_total) || 0; });
+    rows.forEach(function (r) { litres += QTY(r); value += Number(r.line_total) || 0; });
     var rate = litres ? value / litres : 0;
     var share = (function () {
       var all = 0;
-      scope.forEach(function (r) { all += Number(r.liter) || 0; });
+      scope.forEach(function (r) { all += QTY(r); });
       return all ? Math.round(litres / all * 100) : 0;
     })();
 
@@ -586,7 +646,7 @@
       }
       rows.forEach(function (r) {
         var a = leaf(keysFrom(r, 'sale'));
-        a.done += Number(r.liter) || 0; a.doneValue += Number(r.line_total) || 0;
+        a.done += QTY(r); a.doneValue += Number(r.line_total) || 0;
       });
       (extra.oih || []).forEach(function (x) {
         if (norm(typeof canonState === 'function' ? canonState(x.state) : x.state) !== name) return;
@@ -737,10 +797,9 @@
     document.addEventListener('keydown', onEsc);
   }
 
-  svgEl.addEventListener('click', function (e) {
-    var t = e.target;
-    if (t && t.classList && t.classList.contains('rsm-state')) openState(t.getAttribute('data-state'));
-  });
+  /* The map no longer opens anything - hovering it reports the figure under the
+     cursor, and opening a state is the job of the "States by litres" list beside it,
+     which already had the same click and is easier to hit than a small border state. */
   listEl.addEventListener('click', function (e) {
     var row = e.target.closest ? e.target.closest('.rsm-row') : null;
     if (row) openState(row.getAttribute('data-state'));
@@ -798,7 +857,7 @@
 
   function litresOf(rows) {
     var t = 0;
-    for (var i = 0; i < rows.length; i++) t += Number(rows[i].liter) || 0;
+    for (var i = 0; i < rows.length; i++) t += QTY(rows[i]);
     return t;
   }
 
@@ -825,11 +884,52 @@
     });
   }
 
+  /* ---- channel mix donut (the Ecom "By platform" card, for channels) -------
+     Always the whole picture - every channel's share of done litres - even
+     while one channel is focused; the focused one is highlighted and the rest
+     dimmed. Clicking a slice or a legend row focuses that channel, exactly as
+     the legend in the rail does. */
+  function drawDonut(all) {
+    var box = document.getElementById('rsmDonut');
+    if (!box) return;
+    var parts = blocks().map(function (b) { return { name: b.name, v: litresOf(rowsFor(all, b.name)) }; })
+                        .filter(function (p) { return p.v > 0; })
+                        .sort(function (a, b) { return b.v - a.v; });
+    var tot = parts.reduce(function (a, p) { return a + p.v; }, 0);
+    if (!tot) { box.innerHTML = '<p class="rsm-mini-none">Nothing in this range.</p>'; return; }
+    var cx = 46, cy = 46, R = 42, r = 28, a0 = -Math.PI / 2, paths = '';
+    parts.forEach(function (p) {
+      var a1 = a0 + 2 * Math.PI * p.v / tot, big = (a1 - a0) > Math.PI ? 1 : 0;
+      var P = function (ang, rad) { return (cx + rad * Math.cos(ang)).toFixed(2) + ',' + (cy + rad * Math.sin(ang)).toFixed(2); };
+      var d = 'M' + P(a0, R) + ' A' + R + ',' + R + ' 0 ' + big + ' 1 ' + P(a1, R) + ' L' + P(a1, r) + ' A' + r + ',' + r + ' 0 ' + big + ' 0 ' + P(a0, r) + 'Z';
+      if (parts.length === 1) d = 'M' + P(-Math.PI / 2, R) + ' A' + R + ',' + R + ' 0 1 1 ' + P(Math.PI / 2 * 3 - 0.0001, R) + ' L' + P(Math.PI / 2 * 3 - 0.0001, r) + ' A' + r + ',' + r + ' 0 1 0 ' + P(-Math.PI / 2, r) + 'Z';
+      paths += '<path d="' + d + '" fill="' + chCol(p.name) + '" stroke="#fff" stroke-width="2" data-ch="' + p.name +
+               '" class="' + (activeChannel && activeChannel !== p.name ? 'dim' : '') + '"><title>' + esc(channelLabel(p.name)) + ' · ' + num(p.v) + ' L · ' + (p.v / tot * 100).toFixed(1) + '%</title></path>';
+      a0 = a1;
+    });
+    box.innerHTML = '<div class="dn">' +
+      '<svg viewBox="0 0 92 92" role="img" aria-label="Done litres by channel">' + paths +
+        '<text class="dn-c" x="46" y="44" text-anchor="middle">' + parts.length + '</text>' +
+        '<text class="dn-l" x="46" y="56" text-anchor="middle">CHAN</text></svg>' +
+      '<div class="lg">' + parts.map(function (p) {
+        return '<button type="button" data-ch="' + p.name + '" class="' + (activeChannel === p.name ? 'is-on' : '') + '">' +
+               '<i style="background:' + chCol(p.name) + '"></i><span>' + esc(channelLabel(p.name)) + '</span><b>' + (p.v / tot * 100).toFixed(0) + '%</b></button>';
+      }).join('') + '</div></div>';
+    box.querySelectorAll('[data-ch]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var name = el.getAttribute('data-ch');
+        var tab = document.querySelector('#rsmTabs .rsm-tab[data-ch="' + (activeChannel === name ? '' : name) + '"]');
+        if (tab) tab.click();                    /* same path as the rail legend: toggles focus */
+      });
+    });
+  }
+
   /* ---- the only entry point: read the rows slide two already has ---- */
   function build() {
     if (typeof getFilteredChannelRows !== 'function') return;
     var all = getFilteredChannelRows() || [];
     buildTabs(all);
+    drawDonut(all);
     applyMapTheme();
     var rows = rowsFor(all, activeChannel);
     if (subEl) {
@@ -844,7 +944,7 @@
       var key = norm(typeof canonState === 'function' ? canonState(raw) : raw);
       if (!key || key === 'UNKNOWN') continue;
       if (agg[key] === undefined) { agg[key] = 0; order.push(key); }
-      agg[key] += Number(rows[i].liter) || 0;
+      agg[key] += QTY(rows[i]);
     }
     /* Which channel leads in each state - drives the All-channels colouring. */
     domByState = {};
@@ -857,12 +957,12 @@
         if (!k2 || k2 === 'UNKNOWN') continue;
         var ch = memberOf[String(r2.u_main_group || '').trim().toUpperCase()] || 'REST';
         per[k2] = per[k2] || {};
-        per[k2][ch] = (per[k2][ch] || 0) + (Number(r2.liter) || 0);
+        per[k2][ch] = (per[k2][ch] || 0) + (QTY(r2));
       }
       Object.keys(per).forEach(function (k3) {
         var best = null, bestV = -1, tot = 0;
         Object.keys(per[k3]).forEach(function (c2) { tot += per[k3][c2]; if (per[k3][c2] > bestV) { bestV = per[k3][c2]; best = c2; } });
-        domByState[k3] = { channel: best, share: tot ? bestV / tot : 0 };
+        if (tot > 0) domByState[k3] = { channel: best, share: bestV / tot };
       });
     }
     var list = order.map(function (k) { return { name: k, value: agg[k] }; })
@@ -884,7 +984,8 @@
     setScale(list[list.length - 1].value, list[0].value);
     values = agg;
     chipEl.textContent = list.length + ' states · ' +
-      num(list.reduce(function (s, r) { return s + r.value; }, 0)) + ' LTR';
+      num(list.reduce(function (s, r) { return s + r.value; }, 0)) +
+      ' ' + (typeof QU === 'function' ? QU() : 'LTR');
     drawList(list);
     fetchExtra().then(function (extra) { drawStats(agg, extra, rows); });
     loadGeo().then(function () { drawMap(agg); })
@@ -928,7 +1029,11 @@
   function parseNum(t) { var v = parseFloat(String(t || '').replace(/[^0-9.\-]/g, '')); return isFinite(v) ? v : 0; }
 
   /* ---- tabs ---- */
-  var tabBtns = document.querySelectorAll('#slideTwo .wb-tabs button');
+  /* button[data-pane], not every button in the row: the MT / Litres switch also lives
+     on this row, and picking it up here meant clicking it ran the tab handler too -
+     which cleared .on from every pane (the switch has no data-pane to match) and left
+     the whole page blank until a tab was clicked again. */
+  var tabBtns = document.querySelectorAll('#slideTwo .wb-tabs button[data-pane]');
   tabBtns.forEach(function (b) {
     b.addEventListener('click', function () {
       tabBtns.forEach(function (x) { x.classList.remove('on'); x.setAttribute('aria-selected', 'false'); });
@@ -1001,12 +1106,12 @@
     var out = {};
     blocks().forEach(function (b) {
       var rows = rowsFor(all, b.name);
-      var st = {};
+      var st = {}, openVal = 0;
       rows.forEach(function (r) {
         var k = norm(typeof canonState === 'function' ? canonState(r.state) : r.state);
         if (!k || k === 'UNKNOWN') return;
         st[k] = st[k] || { name: k, done: 0, val: 0, open: 0 };
-        st[k].done += Number(r.liter) || 0; st[k].val += Number(r.line_total) || 0;
+        st[k].done += QTY(r); st[k].val += Number(r.line_total) || 0;
       });
       var members = {}; b.members.forEach(function (m) { members[String(m).toUpperCase()] = 1; });
       var segNow = (typeof sc2Seg === 'function') ? String(sc2Seg() || '').toUpperCase() : '';
@@ -1017,13 +1122,15 @@
         if (!k || k === 'UNKNOWN') return;
         st[k] = st[k] || { name: k, done: 0, val: 0, open: 0 };
         st[k].open += Number(x.open_qty) || 0;
+        openVal += Number(x.open_value) || 0;
       });
       var list = Object.keys(st).map(function (k) { return st[k]; }).filter(function (r) { return r.done || r.open; })
                        .sort(function (a, b2) { return b2.done - a.done; });
       var done = list.reduce(function (a, r) { return a + r.done; }, 0);
       var val = list.reduce(function (a, r) { return a + r.val; }, 0);
       var open = list.reduce(function (a, r) { return a + r.open; }, 0);
-      if (done || open) out[b.name] = { name: b.name, states: list, done: done, val: val, open: open, rate: done ? val / done : 0 };
+      if (done || open) out[b.name] = { name: b.name, states: list, done: done, val: val, open: open, rate: done ? val / done : 0,
+                                       openRate: (open > 0 && openVal > 0) ? openVal / open : 0 };
     });
     return out;
   }
@@ -1078,8 +1185,7 @@
     var avg = names.reduce(function (a, k) { return a + data[k].val; }, 0) / (names.reduce(function (a, k) { return a + data[k].done; }, 0) || 1);
     var groups = [
       { k: 'By channel', rows: names.map(function (k) { return [channelLabel(k), data[k].rate, chCol(k)]; }).filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }) },
-      { k: 'Highest states', rows: states.slice(0, 5).map(function (r) { return [titleCase(r.name), r.rate, tok('--good')]; }) },
-      { k: 'Weakest states', rows: states.slice(-5).reverse().map(function (r) { return [titleCase(r.name), r.rate, tok('--bad')]; }) }
+      { k: 'Highest states', rows: states.slice(0, 5).map(function (r) { return [titleCase(r.name), r.rate, tok('--good')]; }) }
     ];
     var cap = Math.max(320, Math.ceil((avg * 1.8) / 50) * 50);
     rl.innerHTML = groups.map(function (g) {
@@ -1096,6 +1202,31 @@
       return '<article class="wb-sm" style="cursor:default"><h3>' + g.k + (g.k === 'By channel' ? '<span>avg ₹' + avg.toFixed(2) + '</span>' : '') + '</h3>' +
         '<svg viewBox="0 0 ' + Wd + ' ' + Hd + '" role="img" aria-label="' + g.k + '">' + q + '</svg></article>';
     }).join('');
+
+    /* Card 3. Plain and concrete: how much money each channel brought in over
+       the selected range. One bar per channel in the channel's own colour,
+       biggest first, the amount at the end of the bar and its share of the
+       total under the name. It pairs with card 1 - ₹ per litre there, total ₹
+       here - and needs no legend to read. */
+    (function () {
+      var rows = names.map(function (k) { return [k, data[k].val]; })
+                      .filter(function (r) { return r[1] > 0; })
+                      .sort(function (a, b) { return b[1] - a[1]; });
+      if (!rows.length) return;
+      var tot = rows.reduce(function (a, r) { return a + r[1]; }, 0), max = rows[0][1];
+      var Wd = 300, Hd = rows.length * 34 + 12, ld = 104, iwd = Wd - ld - 84;
+      var q = '';
+      rows.forEach(function (r, i) {
+        var y = 10 + i * 34, w = Math.max(3, iwd * r[1] / max), name = channelLabel(r[0]);
+        q += '<text class="wb-ax" x="' + (ld - 8) + '" y="' + (y + 9) + '" text-anchor="end">' + esc(name) + '</text>' +
+             '<text class="wb-ax" x="' + (ld - 8) + '" y="' + (y + 22) + '" text-anchor="end" style="fill:' + tok('--wb-ink3') + '">' + (r[1] / tot * 100).toFixed(1) + '%</text>' +
+             '<rect x="' + ld + '" y="' + y + '" width="' + w + '" height="16" rx="4" fill="' + chCol(r[0]) + '"><title>' + esc(name) + ' · ' + money(r[1]) + '</title></rect>' +
+             '<text class="wb-axn" x="' + (ld + w + 8) + '" y="' + (y + 12) + '">' + money(r[1]) + '</text>';
+      });
+      rl.innerHTML += '<article class="wb-sm" style="cursor:default"><h3>Revenue by channel<span>total ' + money(tot) + '</span></h3>' +
+        '<svg viewBox="0 0 ' + Wd + ' ' + Hd + '" role="img" aria-label="Revenue by channel">' + q + '</svg>' +
+        '<div class="f"><span>₹ earned in the selected range · biggest first</span></div></article>';
+    })();
     var osub = document.getElementById('wbOverviewSub');
     if (osub) osub.textContent = (activeChannel ? channelLabel(activeChannel) + ' only' : 'All channels') + ' · done vs open, one scale across every card';
   }

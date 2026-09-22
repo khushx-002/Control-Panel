@@ -1964,6 +1964,12 @@ function setSlideTwoKpis(targetLtr,doneLtr,targetRealise,currentRealise,oihLtr,b
   // Bal Ltr mirrors the table's primary "Bal" column = (effective target − Done − OIH). Callers
   // pass balLtr explicitly when the table uses a flex-adjusted target; otherwise default to
   // Target − Done − OIH so the KPI strip stays consistent with the per-row / TOTAL "Bal".
+  /* doneLtr already arrives in the selected unit - it is summed through QTY().
+     targetLtr and oihLtr do not: they are litre totals from the target store and the
+     open-order query, so they are converted here with the blended factor. Bal is then
+     worked out from the three IN THE SAME UNIT - mixing them was the real risk. */
+  targetLtr=QTYL(targetLtr||0); oihLtr=QTYL(oihLtr||0);
+  if(balLtr!==undefined&&balLtr!==null)balLtr=QTYL(balLtr);
   var bal=(balLtr===undefined||balLtr===null)?((targetLtr||0)-(doneLtr||0)-(oihLtr||0)):balLtr;
   var elTarget=document.getElementById('sc2KpiTarget');
   var elDone=document.getElementById('sc2KpiDone');
@@ -2009,7 +2015,7 @@ function sc2TopCustomers(){
   (sc2Rows||[]).forEach(function(r){
     if(seg&&r.u_type!==seg)return;
     var k=r.card_name||'—'; if(!map[k]){map[k]={name:k,litres:0};order.push(k);}
-    map[k].litres+=Number(r.liter)||0;
+    map[k].litres+=QTY(r);
   });
   return order.map(function(k){return map[k];}).sort(function(a,b){return b.litres-a.litres||String(a.name).localeCompare(String(b.name));});
 }
@@ -2107,7 +2113,7 @@ function sc2mBuildTree(rows,dims,depth,prefix,pfilt,pcrumb){
   var dim=dims[depth], map={}, order=[];
   for(var i=0;i<rows.length;i++){var r=rows[i], key=sc2MonthlyRowVal(r,dim);
     if(!map[key]){map[key]={label:key,dim:dim,by:{},total:0,_rows:[]};order.push(key);}
-    var v=Number(r.liter)||0; map[key].by[r.ym]=(map[key].by[r.ym]||0)+v; map[key].total+=v; map[key]._rows.push(r);
+    var v=QTY(r); map[key].by[r.ym]=(map[key].by[r.ym]||0)+v; map[key].total+=v; map[key]._rows.push(r);
   }
   return order.map(function(k){var n=map[k];
     n.path=prefix+'>'+dim+':'+k;
@@ -2230,7 +2236,7 @@ function openSc2MonthlyCust(path,ym,mlabel){
     if(!ok)continue;
     var cust=String(r.card_name||'').trim().toUpperCase()||'—';
     if(!map[cust]){map[cust]={name:cust,liter:0};order.push(cust);}
-    map[cust].liter+=Number(r.liter)||0;
+    map[cust].liter+=QTY(r);
   }
   var list=order.map(function(k){return map[k];}).sort(function(a,b){return b.liter-a.liter||String(a.name).localeCompare(String(b.name));});
   var tot=0; for(var j=0;j<list.length;j++)tot+=list[j].liter;
@@ -2294,7 +2300,7 @@ function buildSlideTwoDrillRows(rows,dimension,groupFilter,targetNodes,oihRows){
     if(groupFilter && rg!==groupFilter)continue;
     var name=isPerson?assignedPerson(row.u_main_group,row.state):(String(row.state||'UNKNOWN').trim().toUpperCase()||'UNKNOWN');
     if(isPerson && !name)continue;
-    var c=cell(name); c.done+=Number(row.liter)||0; c.lineTotal+=Number(row.line_total)||0;
+    var c=cell(name); c.done+=QTY(row); c.lineTotal+=Number(row.line_total)||0;
   }
   if(isPerson){ for(var ai=0;ai<ASSIGNED_PERSONS.length;ai++)cell(ASSIGNED_PERSONS[ai]); }
   for(var t=0;t<(targetNodes||[]).length;t++){
@@ -2448,7 +2454,7 @@ function commodityProductTotals(rows){
   for(var i=0;i<clean.length;i++){
     var sub=String(clean[i].u_sub_group||'').trim().toUpperCase();
     if(!map[sub])map[sub]={name:sub,done:0,lineTotal:0};
-    map[sub].done+=Number(clean[i].liter)||0; map[sub].lineTotal+=Number(clean[i].line_total)||0;
+    map[sub].done+=QTY(clean[i]); map[sub].lineTotal+=Number(clean[i].line_total)||0;
   }
   commoditySubGroups().forEach(function(s){ if(!map[s])map[s]={name:s,done:0,lineTotal:0}; });
   return Object.keys(map).map(function(k){
@@ -2468,9 +2474,9 @@ function buildCommodityTree(rows,oihRows,lastRows,order){
     if(level>=order.length)return null;
     var dim=order[level], map={};
     function cell(v){if(!map[v])map[v]={name:v,dim:dim,done:0,lineTotal:0,oih:0,oihLineTotal:0,lastDone:0,_s:[],_o:[],_l:[]};return map[v];}
-    for(var i=0;i<salesSub.length;i++){var r=salesSub[i],c=cell(comDimValue(r,dim));c.done+=Number(r.liter)||0;c.lineTotal+=Number(r.line_total)||0;c._s.push(r);}
+    for(var i=0;i<salesSub.length;i++){var r=salesSub[i],c=cell(comDimValue(r,dim));c.done+=QTY(r);c.lineTotal+=Number(r.line_total)||0;c._s.push(r);}
     for(var j=0;j<oihSub.length;j++){var x=oihSub[j],c2=cell(comDimValue(x,dim));c2.oih+=Number(x.open_qty)||0;c2.oihLineTotal+=Number(x.open_value)||0;c2._o.push(x);}
-    for(var m=0;m<lastSub.length;m++){var y=lastSub[m],c3=cell(comDimValue(y,dim));c3.lastDone+=Number(y.liter)||0;c3._l.push(y);}
+    for(var m=0;m<lastSub.length;m++){var y=lastSub[m],c3=cell(comDimValue(y,dim));c3.lastDone+=QTY(y);c3._l.push(y);}
     return Object.keys(map).map(function(k){
       var n=map[k]; n.kids=group(n._s,n._o,n._l,level+1); delete n._s; delete n._o; delete n._l;
       if(dim==='product'){ n.target=Number(getDefTS('COMMODITY',n.name))||0; n.targetRealise=Number(getDefTR('COMMODITY',n.name))||0; }
@@ -2648,7 +2654,7 @@ function renderSlideTwoCommodity(){
   var tot=comTotal(commodityProductTotals(rows));
   var co=commodityCleanRows(oih), totOih=0; for(var i=0;i<co.length;i++)totOih+=Number(co[i].open_qty)||0;
   tot.oih=totOih;
-  var cl=commodityCleanRows(last), totLast=0; for(var li=0;li<cl.length;li++)totLast+=Number(cl[li].liter)||0;
+  var cl=commodityCleanRows(last), totLast=0; for(var li=0;li<cl.length;li++)totLast+=QTY(cl[li]);
   tot.lastDone=totLast;
   var tree=buildCommodityTree(rows,oih,last,comOrder);
   // Bal Ltr KPI = the TOTAL row's "Bal" = flex-adjusted target − Done − OIH (matches comCellsTotal).
@@ -2760,7 +2766,7 @@ function buildStateRows(rows,members,groupByMainGroup,channelName){
       stateName=groupByMainGroup?(row.u_main_group||'UNKNOWN'):(row.state||'UNKNOWN');
     }
     if(!map[stateName])map[stateName]={name:stateName,done:0};
-    var doneValue=Number(row.liter)||0;
+    var doneValue=QTY(row);
     map[stateName].done+=doneValue;
     totalDone+=doneValue;
   }
@@ -3050,7 +3056,7 @@ function buildChannelDetailLeaves(){
     var cust=String(r.card_name||'').trim().toUpperCase()||CD_NO_CUSTOMER;
     var prod=String(r.u_sub_group||'').trim().toUpperCase()||CD_NONE;
     var item=String(r.item_name||'').trim().toUpperCase()||CD_NONE;
-    var c=cell(g,st,assignedPerson(g,r.state)||'—',cust,prod,item,String(r.sku||'').trim().toUpperCase()||CD_NONE); c.done+=Number(r.liter)||0; c.lineTotal+=Number(r.line_total)||0;
+    var c=cell(g,st,assignedPerson(g,r.state)||'—',cust,prod,item,String(r.sku||'').trim().toUpperCase()||CD_NONE); c.done+=QTY(r); c.lineTotal+=Number(r.line_total)||0;
   }
   for(var t=0;t<detailTargetNodes.length;t++){
     var n=detailTargetNodes[t],g2=String(n.main_group||'').toUpperCase();
@@ -3669,7 +3675,7 @@ function buildMetricGranular(metric,targetNodes,oihRows){
   var dSign=(metric==='balance')?-1:1;   // done is subtracted when computing balance
   for(var i=0;i<rows.length;i++){
     var r=rows[i], grp=String(r.u_main_group||'').trim().toUpperCase()||'—', st=String(r.state||'').trim().toUpperCase()||'—';
-    var ut=String(r.u_type||'').toUpperCase(), v=(Number(r.liter)||0)*dSign;
+    var ut=String(r.u_type||'').toUpperCase(), v=(QTY(r))*dSign;
     add(grp,st,assignedPerson(grp,st)||'—',String(r.u_sub_group||'').trim().toUpperCase(),String(r.item_name||'').trim().toUpperCase(),String(r.card_name||'').trim().toUpperCase(),ut==='PREMIUM'?v:0,ut==='COMMODITY'?v:0,v,String(r.sku||'').trim().toUpperCase(),(ut==='PREMIUM'||ut==='COMMODITY')?0:v);
   }
   if(metric==='balance'){
@@ -3931,7 +3937,37 @@ async function renderSlideTwo(){
   for(var li=0;li<layoutNames.length;li++){ if(cardByName[layoutNames[li]])html+=cardByName[layoutNames[li]]; }
   grid.innerHTML=html;
 }
-function sc2Realise(rows){var l=0,lt=0;for(var i=0;i<rows.length;i++){l+=Number(rows[i].liter)||0;lt+=Number(rows[i].line_total)||0;}return l>0?lt/l:0;}
+/* ── Litres / metric tonnes ────────────────────────────────────────────────
+   Rows carry both: .liter straight from SAP, and .mt converted PER ITEM on the
+   server from the item master's gross case weight (see services.litres_to_mt).
+   Reading through QTY() means a card can never disagree with the toggle.
+
+   MT is the default, as asked. The choice is remembered per browser so it does
+   not reset on every visit. */
+var QTY_KEY='cp:realise:qtyunit';
+var qtyUnit='mt';
+try{ var _qu=localStorage.getItem(QTY_KEY); if(_qu==='ltr'||_qu==='mt')qtyUnit=_qu; }catch(e){}
+function QTY(r){ return qtyUnit==='mt' ? (Number(r&&r.mt)||0) : (Number(r&&r.liter)||0); }
+function QU(){ return qtyUnit==='mt' ? 'MT' : 'LTR'; }
+/* Litres already totalled elsewhere (targets, and anything that never came off a
+   row) converted with ONE blended factor. It cannot be per item - a target is a
+   plan for a mixture - so it uses the same median the server falls back on. */
+var QTY_KGL=(typeof MT_KGL!=='undefined'&&Number(MT_KGL))?Number(MT_KGL):0.98;
+function QTYL(litres){ litres=Number(litres)||0; return qtyUnit==='mt' ? litres*QTY_KGL/1000 : litres; }
+function setQtyUnit(u){
+  qtyUnit=(u==='ltr')?'ltr':'mt';
+  try{ localStorage.setItem(QTY_KEY,qtyUnit); }catch(e){}
+  var box=document.getElementById('qtyUnitSeg');
+  if(box){ var bs=box.querySelectorAll('button');
+    for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',bs[i].getAttribute('data-qu')===qtyUnit); }
+  // Every LTR/MT caption on the page, so no card is left claiming the old unit.
+  var us=document.querySelectorAll('.js-qu');
+  for(var u=0;u<us.length;u++)us[u].textContent=QU();
+  if(typeof renderSlideTwo==='function')renderSlideTwo();
+  if(typeof window.rsmRefresh==='function')window.rsmRefresh();
+}
+
+function sc2Realise(rows){var l=0,lt=0;for(var i=0;i<rows.length;i++){l+=QTY(rows[i]);lt+=Number(rows[i].line_total)||0;}return l>0?lt/l:0;}
 // Per-row metrics for a channel card: ltrs target/done, line total (revenue),
 // target realise (litres-weighted ₹/L) and actual realise (revenue/litres).
 function buildCardRows(channel,members,rows,targetNodes,oihRows){
@@ -3943,7 +3979,7 @@ function buildCardRows(channel,members,rows,targetNodes,oihRows){
     if(members.indexOf(g)===-1)continue;
     var k=isREST?g:detailStateLabel(channel,r.state);
     if(k===null)continue;
-    var c=cell(k); c.done+=Number(r.liter)||0; c.lineTotal+=Number(r.line_total)||0;
+    var c=cell(k); c.done+=QTY(r); c.lineTotal+=Number(r.line_total)||0;
   }
   for(var t=0;t<targetNodes.length;t++){
     var n=targetNodes[t],ng=String(n.main_group||'').toUpperCase();
@@ -4016,7 +4052,7 @@ function buildSc2DynLeaves(rows,targetNodes,oihRows){
     var cust=String(r.card_name||'').trim().toUpperCase()||'—';
     var prod=String(r.u_sub_group||'').trim().toUpperCase()||'—';
     var it=String(r.item_name||'').trim().toUpperCase()||'—';
-    var c=cell(g,st,p,cust,prod,it); c.done+=Number(r.liter)||0; c.lineTotal+=Number(r.line_total)||0;
+    var c=cell(g,st,p,cust,prod,it); c.done+=QTY(r); c.lineTotal+=Number(r.line_total)||0;
   }
   for(var t=0;t<(targetNodes||[]).length;t++){
     var n=targetNodes[t], rawNg=String(n.main_group||'').toUpperCase();

@@ -92,6 +92,9 @@ def _render_sales_dashboard(request, dataset, page='sales'):
     return render(request, pick(request, 'realise/dashboard.html',
                                          'realise/dashboard_legacy.html'), {
         'sidebar_active': active,
+        # Median kg per litre, for the few figures that are already totalled litres
+        # (targets). Row-level quantities are converted per item, server side.
+        'mt_kgl': services.get_item_kg_per_litre().get('fallback') or 0.98,
         'initial_dataset': dataset,
         'initial_page': page,
         'territory_payload': json.dumps(services.get_territory_dashboard_payload()),
@@ -817,6 +820,9 @@ def _aggregate_channel_rows(raw_rows):
     lossless for every card / drill / commodity aggregation while still collapsing
     the many invoice LINES per customer-order into one bucket. card_name powers the
     Customer drill and item_name the Item Name drill in the channel detail modal."""
+    # kg per litre per item, read once for the whole pass (see
+    # services.get_item_kg_per_litre - gross case weight / litres per case).
+    _kgl = services.get_item_kg_per_litre()
     agg = {}
     for row in raw_rows:
         sales_person = ''
@@ -842,13 +848,18 @@ def _aggregate_channel_rows(raw_rows):
                 'u_type': u_type, 'u_sub_group': u_sub, 'u_main_group': u_main,
                 'state': state, 'sales_person': sales_person, 'card_name': card_name,
                 'item_name': item_name, 'sku': sku,
-                'liter': 0.0, 'line_total': 0.0,
+                'liter': 0.0, 'mt': 0.0, 'line_total': 0.0,
             }
-        bucket['liter'] += float(row.get('Liter', 0) or 0)
+        _l = float(row.get('Liter', 0) or 0)
+        bucket['liter'] += _l
+        # Per source row, not per bucket: kg/litre is an item property and a bucket
+        # can hold several items.
+        bucket['mt'] += services.litres_to_mt(_l, str(row.get('ItemCode') or ''), _kgl)
         bucket['line_total'] += float(row.get('LineTotal', 0) or 0)
     out = list(agg.values())
     for b in out:
         b['liter'] = round(b['liter'], 2)
+        b['mt'] = round(b['mt'], 3)
         b['line_total'] = round(b['line_total'], 2)
     return out
 
@@ -860,6 +871,9 @@ def _aggregate_channel_month_rows(raw_rows):
     Person / Product / Item Name / Customer) plus the month, so the States x Months pivot
     can re-pivot its rows by any of them while months stay in the columns. `ym` is a
     sortable 'YYYY-MM'; `mlabel` is the display label ('JUL 2025')."""
+    # kg per litre per item, read once for the whole pass (see
+    # services.get_item_kg_per_litre - gross case weight / litres per case).
+    _kgl = services.get_item_kg_per_litre()
     agg = {}
     for row in raw_rows:
         mon, year = services._parse_doc_date(row.get('DocDate', ''))
@@ -899,14 +913,17 @@ def _aggregate_channel_month_rows(raw_rows):
                 'sales_person': sales_person, 'u_sub_group': u_sub, 'item_name': item_name,
                 'card_name': card_name, 'sku': sku, 'u_variety': variety, 'is_fg': is_fg,
                 'ym': ym, 'mlabel': '%s %s' % (mon, year),
-                'liter': 0.0, 'line_total': 0.0, 'pcs': 0.0,
+                'liter': 0.0, 'mt': 0.0, 'line_total': 0.0, 'pcs': 0.0,
             }
-        bucket['liter'] += float(row.get('Liter', 0) or 0)
+        _l = float(row.get('Liter', 0) or 0)
+        bucket['liter'] += _l
+        bucket['mt'] += services.litres_to_mt(_l, str(row.get('ItemCode') or ''), _kgl)
         bucket['line_total'] += float(row.get('LineTotal', 0) or 0)
         bucket['pcs'] += float(row.get('Quantity', 0) or 0)   # selling units (bottles/cans) → Pieces / Rate view
     out = list(agg.values())
     for b in out:
         b['liter'] = round(b['liter'], 2)
+        b['mt'] = round(b['mt'], 3)
         b['line_total'] = round(b['line_total'], 2)
         b['pcs'] = round(b['pcs'], 2)
     return out

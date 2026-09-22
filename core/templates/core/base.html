@@ -625,6 +625,80 @@
                                 position: absolute; transform: none; }
     }
 
+    /* ── Closed sidebar = icons in the top bar ───────────────────────────────
+       When the user closes the sidebar the left rail goes away completely and
+       its page icons move into the top bar (built by JS from the sidebar, so
+       the two never drift apart). Open the sidebar again and the strip empties
+       and the rail comes back. These rules sit after the collapsed-rail and
+       media rules above on purpose, so they win. */
+    body.cp-sidebar-collapsed .cp-sidebar,
+    body.cp-sidebar-collapsed .cp-sidebar.cp-sb-peek,
+    body.cp-sidebar-collapsed .cp-sidebar:focus-within {
+      width: 0 !important; min-width: 0; padding: 0 !important; border-right: 0;
+      visibility: hidden; overflow: hidden; transform: none; box-shadow: none;
+    }
+    /* The logo keeps its own width now that nothing sits under it. */
+    body.cp-sidebar-collapsed .cp-topbar-brand { width: 244px !important; border-right: 0; }  /* as wide as the open sidebar, so the icons start where the sidebar ends */
+    body.cp-sidebar-collapsed .cp-brand-logo { height: 40px; min-width: 82px; }
+    /* A short line between the logo and the icons - the same line that separates
+       the icon sections further right. It is the first thing in the strip, so the
+       strip starts flush at the logo's edge (no bar padding on that side). */
+    body.cp-sidebar-collapsed .cp-topbar-rest { padding-left: 0; }
+    body.cp-sidebar-collapsed .cp-topnav::before { content: ''; flex: 0 0 auto; width: 1px; height: 22px;
+                                                   background: #e5e7eb; margin: 0 8px 0 0; }
+    /* The arrow sits ON that line (negative margins give it no width of its own)
+       and stays hidden until the pointer is over the logo or the line itself, so the
+       bar reads clean. Keyboard focus shows it too. */
+    body.cp-sidebar-collapsed .cp-topbar .cp-sb-arrow { position: relative !important; top: auto; left: auto; margin: 0 -13px; z-index: 3;
+                                                        transform: none; opacity: 0; pointer-events: auto; }
+    body.cp-sidebar-collapsed .cp-topbar-brand:hover ~ .cp-sb-arrow,
+    body.cp-sidebar-collapsed .cp-topbar .cp-sb-arrow:hover,
+    body.cp-sidebar-collapsed .cp-topbar .cp-sb-arrow:focus-visible { opacity: 1; }
+
+    .cp-topnav { display: none; flex: 1; min-width: 0; align-items: center; gap: 4px;
+                 margin-right: 12px; overflow-x: auto; overflow-y: visible;
+                 scrollbar-width: none; -ms-overflow-style: none; }
+    .cp-topnav::-webkit-scrollbar { display: none; }
+    body.cp-sidebar-collapsed .cp-topnav { display: flex; }
+    .cp-topnav-sep { width: 1px; height: 22px; background: #e5e7eb; margin: 0 6px; flex: 0 0 auto; }
+    /* One square per page, icon only; the page name is the browser tooltip. */
+    .cp-topbar .cp-topnav-btn { flex: 0 0 auto; width: 36px; height: 36px; padding: 0; display: inline-flex;
+                    align-items: center; justify-content: center; position: relative;
+                    border: 1px solid transparent; background: transparent; border-radius: 10px;
+                    color: #475569; cursor: pointer; text-decoration: none; font: inherit;
+                    transition: background .15s, border-color .15s, color .15s; }
+    .cp-topbar .cp-topnav-btn .ic { font-size: 18px; }
+    .cp-topbar .cp-topnav-btn:hover { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+    .cp-topbar .cp-topnav-btn.active { background: var(--rz-ink, #0f172a); border-color: var(--rz-ink, #0f172a); color: #fff; }
+    .cp-topbar .cp-topnav-btn.active .ic { color: #fff; }
+    .cp-topbar .cp-topnav-btn:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+    /* A group (Sales, Accounts...) shows a tiny chevron in the corner and opens a menu. */
+    .cp-topnav-group { position: relative; flex: 0 0 auto; }
+    .cp-topbar .cp-topnav-btn .cp-topnav-chev { position: absolute; right: 2px; bottom: 1px; font-size: 9px; opacity: .7; }
+    .cp-topnav-group.open > .cp-topnav-btn { background: #eef2ff; border-color: #a5b4fc; color: #4338ca; }
+    .cp-topnav-menu { display: none; position: fixed; min-width: 230px; padding: 6px;
+                      background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+                      box-shadow: 0 12px 32px rgba(15, 23, 42, .14); z-index: 400; }
+    .cp-topnav-group.open > .cp-topnav-menu { display: block; }
+    .cp-topnav-menu-h { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+                        color: #94a3b8; padding: 6px 10px 4px; }
+    .cp-topnav-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px;
+                      font-size: 13px; font-weight: 700; color: #334155; text-decoration: none; white-space: nowrap; }
+    .cp-topnav-link .ic { font-size: 16px; color: #64748b; }
+    .cp-topnav-link:hover { background: #f1f5f9; color: #0f172a; }
+    .cp-topnav-link.active { background: var(--rz-ink, #0f172a); color: #fff; }
+    .cp-topnav-link.active .ic { color: #fff; }
+    /* One shared tooltip bubble (moved under whichever icon the pointer is on).
+       A per-icon bubble would be clipped by the strip's sideways scrolling. */
+    .cp-topnav-tip { position: fixed; z-index: 500; pointer-events: none; opacity: 0;
+                     transform: translate(-50%, -4px); transition: opacity .12s, transform .12s;
+                     background: #0f172a; color: #fff; font-size: 12px; font-weight: 700;
+                     line-height: 1; padding: 7px 10px; border-radius: 8px; white-space: nowrap;
+                     box-shadow: 0 6px 18px rgba(15, 23, 42, .18); }
+    .cp-topnav-tip::before { content: ''; position: absolute; left: 50%; top: -4px; width: 8px; height: 8px;
+                             margin-left: -4px; background: #0f172a; transform: rotate(45deg); border-radius: 2px; }
+    .cp-topnav-tip.show { opacity: 1; transform: translate(-50%, 0); }
+
     /* ── Small screens ─────────────────────────────────────────────────────── */
     @media (max-width: 760px) {
       .cp-main { padding: 18px 14px; }
@@ -880,6 +954,11 @@
       <i class="ic ic-chevron-right"></i>
     </button>
     <div class="cp-topbar-rest">
+    {% comment %}
+      Filled by script from the sidebar links, only while the sidebar is closed.
+      Empty and hidden while the sidebar is open.
+    {% endcomment %}
+    <nav class="cp-topnav" id="cpTopNav" aria-label="Pages"></nav>
     <div class="cp-userwrap">
       <button type="button" class="cp-userbtn" id="cpUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account">
         <i class="ic ic-user"></i>
@@ -1237,6 +1316,99 @@
         if (timer) clearTimeout(timer);
         timer = setTimeout(function () { sb.classList.remove('cp-sb-peek'); }, 180);
       });
+    })();
+
+    /* ── Top-bar icons while the sidebar is closed ─────────────────────────────
+       The strip is a copy of the sidebar: every top-level page becomes one icon
+       button, every group (Sales, Accounts...) becomes one icon that opens a menu
+       with the group's pages. It is built when the sidebar closes and emptied when
+       it opens, so the icons are only ever in one place. */
+    (function () {
+      var sb = document.querySelector('.cp-sidebar'), nav = document.getElementById('cpTopNav');
+      if (!sb || !nav) return;
+      function esc(t) { return String(t).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function icon(el) { var i = el.querySelector('.ic:not(.cp-nav-group-chev)'); return i ? i.className : 'ic ic-circle'; }
+      function label(el) { return (el.getAttribute('title') || el.textContent || '').trim(); }
+      function build() {
+        var html = '', lastNav = null;
+        var all = sb.querySelectorAll('.cp-nav-item:not(.cp-nav-group-btn), .cp-nav-group');
+        Array.prototype.forEach.call(all, function (el) {
+          if (el.closest('.cp-nav-sub')) return;              // handled by its group
+          var owner = el.closest('.cp-nav');                  // a thin line between menu sections
+          if (lastNav && owner !== lastNav) html += '<span class="cp-topnav-sep" aria-hidden="true"></span>';
+          lastNav = owner;
+          if (el.classList.contains('cp-nav-group')) {
+            var btn = el.querySelector('.cp-nav-group-btn'), name = btn ? label(btn) : 'More';
+            var subs = el.querySelectorAll('.cp-nav-sub .cp-nav-item'), on = el.querySelector('.cp-nav-sub .cp-nav-item.active');
+            html += '<div class="cp-topnav-group">'
+                 +  '<button type="button" class="cp-topnav-btn' + (on ? ' active' : '') + '" aria-label="' + esc(name) + '" aria-haspopup="true" aria-expanded="false">'
+                 +  '<i class="' + esc(btn ? icon(btn) : 'ic ic-folder') + '"></i><i class="ic ic-chevron-down cp-topnav-chev"></i></button>'
+                 +  '<div class="cp-topnav-menu" role="menu"><div class="cp-topnav-menu-h">' + esc(name) + '</div>';
+            Array.prototype.forEach.call(subs, function (a) {
+              html += '<a class="cp-topnav-link' + (a.classList.contains('active') ? ' active' : '') + '" role="menuitem" href="' + esc(a.getAttribute('href')) + '">'
+                   +  '<i class="' + esc(icon(a)) + '"></i>' + esc(label(a)) + '</a>';
+            });
+            html += '</div></div>';
+          } else {
+            html += '<a class="cp-topnav-btn' + (el.classList.contains('active') ? ' active' : '') + '" href="' + esc(el.getAttribute('href')) + '" aria-label="' + esc(label(el)) + '">'
+                 +  '<i class="' + esc(icon(el)) + '"></i></a>';
+          }
+        });
+        nav.innerHTML = html;
+      }
+      function closeMenus() {
+        Array.prototype.forEach.call(nav.querySelectorAll('.cp-topnav-group.open'), function (g) {
+          g.classList.remove('open');
+          var b = g.querySelector('.cp-topnav-btn'); if (b) b.setAttribute('aria-expanded', 'false');
+        });
+      }
+      function sync() {
+        var closed = document.body.classList.contains('cp-sidebar-collapsed');
+        if (closed && !nav.childElementCount) build();
+        if (!closed && nav.childElementCount) { closeMenus(); nav.innerHTML = ''; }
+      }
+      // A group menu opens under its icon; the strip can scroll sideways, so the
+      // menu is placed from the icon's real position on screen.
+      nav.addEventListener('click', function (e) {
+        var g = e.target.closest('.cp-topnav-group');
+        if (!g || !nav.contains(g) || e.target.closest('.cp-topnav-menu')) return;
+        var wasOpen = g.classList.contains('open');
+        closeMenus();
+        if (!wasOpen) {
+          var b = g.querySelector('.cp-topnav-btn'), m = g.querySelector('.cp-topnav-menu'), r = b.getBoundingClientRect();
+          m.style.top = Math.round(r.bottom + 8) + 'px';
+          m.style.left = Math.min(Math.round(r.left), Math.max(8, window.innerWidth - 246)) + 'px';
+          g.classList.add('open'); b.setAttribute('aria-expanded', 'true');
+        }
+      });
+      // Page name under the icon while the pointer rests on it (hidden while a
+      // group menu is open - the menu already shows the names).
+      var tip = document.createElement('div'); tip.className = 'cp-topnav-tip'; tip.setAttribute('role', 'tooltip');
+      document.body.appendChild(tip);
+      function hideTip() { tip.classList.remove('show'); }
+      function showTip(b) {
+        var g = b.closest('.cp-topnav-group');
+        if (g && g.classList.contains('open')) { hideTip(); return; }
+        var r = b.getBoundingClientRect();
+        tip.textContent = b.getAttribute('aria-label') || '';
+        tip.style.left = Math.round(r.left + r.width / 2) + 'px';
+        tip.style.top = Math.round(r.bottom + 8) + 'px';
+        tip.classList.add('show');
+      }
+      nav.addEventListener('mouseover', function (e) {
+        var b = e.target.closest('.cp-topnav-btn');
+        if (b && nav.contains(b)) showTip(b); else hideTip();
+      });
+      nav.addEventListener('mouseleave', hideTip);
+      nav.addEventListener('click', hideTip);
+      nav.addEventListener('focusin', function (e) { var b = e.target.closest('.cp-topnav-btn'); if (b) showTip(b); });
+      nav.addEventListener('focusout', hideTip);
+      document.addEventListener('click', function (e) { if (!nav.contains(e.target)) closeMenus(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+      window.addEventListener('resize', closeMenus);
+      new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      sync();
     })();
 
   </script>

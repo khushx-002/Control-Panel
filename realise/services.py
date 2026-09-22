@@ -7100,3 +7100,78 @@ def get_beverages_gst(start_date, end_date):
     if rows:
         _shared_set('bevgst', key, payload, _BEV_GST_TTL)
     return payload
+
+
+# ───────────────────── Litres → metric tonnes ─────────────────────────────
+# The dashboards can show quantity either way. There is no net weight to work
+# from: of the 109 oil items sold in a recent month only 12 carried
+# OITM."U_Net_Weight", while 99 carried "U_Gross_Weight" - so gross is what the
+# conversion is built on, by explicit choice.
+#
+# What the number means
+# ---------------------
+# U_Gross_Weight is the weight of one SELLING UNIT (a case), not of a litre. The
+# litres in that same case are SalPackUn x SalFactor2, so
+#
+#       kg per litre = U_Gross_Weight / (SalPackUn * SalFactor2)
+#
+# Measured across the book that lands between 0.97 and 1.00 - oil at roughly
+# 0.91 plus its bottle and carton. It is therefore weight DESPATCHED, packaging
+# included, not the weight of the oil alone. Anything outside 0.5 .. 2.0 kg/l is
+# a data-entry slip rather than a product, and is dropped so one bad row cannot
+# move a tonnage total.
+_ITEM_KGL_TTL = 600        # seconds - the item master barely moves
+_KGL_MIN, _KGL_MAX = 0.5, 2.0
+
+
+def get_item_kg_per_litre(schema=None):
+    """{ItemCode: kg per litre} from the item master, plus the fallback to use for
+    items that carry no weight.
+
+    Returns {'map': {...}, 'fallback': float, 'covered': int, 'total': int}. The
+    fallback is the MEDIAN of the items that do have a weight - not an invented
+    density, and not the mean, which one absurd row could drag."""
+    S = schema or SAP_SCHEMA
+    key = ('kgl', S)
+    hit = _shared_get('itemkgl', key)
+    if hit is not None:
+        return hit
+    sql = f'''
+    SELECT "ItemCode" AS "code",
+           "U_Gross_Weight" AS "gross",
+           "SalPackUn" AS "packun",
+           "SalFactor2" AS "percase"
+    FROM "{S}"."OITM"
+    WHERE "SellItem" = 'Y' '''
+    try:
+        raw = sap_connector.execute_query(sql) or []
+    except Exception as exc:
+        logger.error('[KG/L] item weights unavailable: %s', exc)
+        return {'map': {}, 'fallback': 0.0, 'covered': 0, 'total': 0}
+
+    out, vals = {}, []
+    for r in raw:
+        litres = _bev_num(r.get('packun')) * _bev_num(r.get('percase'))
+        gross = _bev_num(r.get('gross'))
+        if litres <= 0 or gross <= 0:
+            continue
+        k = gross / litres
+        if k < _KGL_MIN or k > _KGL_MAX:      # a slip, not a product
+            continue
+        out[_bev_cell(r.get('code'))] = round(k, 5)
+        vals.append(k)
+
+    vals.sort()
+    fallback = round(vals[len(vals) // 2], 5) if vals else 0.0
+    payload = {'map': out, 'fallback': fallback, 'covered': len(out), 'total': len(raw)}
+    _shared_set('itemkgl', key, payload, _ITEM_KGL_TTL)
+    return payload
+
+
+def litres_to_mt(litres, item_code, kgl=None):
+    """Metric tonnes for `litres` of one item. Falls back to the median kg/l when
+    that item carries no weight, so a missing master-data row shows a sensible
+    tonnage instead of a zero that would quietly shrink every total above it."""
+    kgl = kgl or get_item_kg_per_litre()
+    k = kgl['map'].get(item_code) or kgl['fallback']
+    return (float(litres or 0) * k) / 1000.0
