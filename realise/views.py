@@ -2091,6 +2091,23 @@ def api_beverages_data(request):
 
 @group_required(*REALISE_GROUPS, json_response=True)
 @require_http_methods(['GET'])
+def api_beverages_month_history(request):
+    """Box totals per (month, brand) for the 24 months before ?before=YYYY-MM-DD.
+    Feeds the "closest month" line on the beverages Last Month card. Asked for
+    separately, after the main data, so a slow history pull never holds the cards."""
+    before = (request.GET.get('before') or '').strip()
+    if not before:
+        return JsonResponse({'status': 'error', 'error': 'before required'}, status=400)
+    try:
+        months = services.get_beverages_month_history(before)
+    except Exception as e:
+        logger.error('[BEVERAGES] month history error: %s', e)
+        months = []
+    return JsonResponse({'status': 'ok', 'months': months})
+
+
+@group_required(*REALISE_GROUPS, json_response=True)
+@require_http_methods(['GET'])
 def api_beverages_docs(request):
     """Invoice / open-SO documents behind a beverages driller cell, filtered to the clicked
     node (customer + ancestor dims + brand/month). metric=sales -> invoices, oih -> SOs."""

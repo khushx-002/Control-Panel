@@ -80,6 +80,7 @@ urlpatterns = [
     path('api/sales-pulse/',         views.api_sales_pulse,        name='api_sales_pulse'),
     path('api/beverages-data/',      views.api_beverages_data,     name='api_beverages_data'),
     path('api/beverages-docs/',      views.api_beverages_docs,     name='api_beverages_docs'),
+    path('api/beverages-month-history/', views.api_beverages_month_history, name='api_beverages_month_history'),
     path('api/channel-targets/',     views.api_channel_targets,    name='api_channel_targets'),
     path('api/segment-targets/',     views.api_segment_targets,    name='api_segment_targets'),
     path('api/order-in-hand/',       views.api_order_in_hand,      name='api_order_in_hand'),

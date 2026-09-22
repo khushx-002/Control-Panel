@@ -460,6 +460,53 @@ def get_beverages_rows(start_date, end_date, want_prev=False):
             'customer_rows': customer_rows, 'month_rows': month_rows, 'oih_rows': oih_rows}
 
 
+# ── Box totals per month, for the "closest month" line on the Last Month card ──
+# The card compares the range's Total Boxes with EVERY earlier month and names the
+# one that comes nearest, however far back it is. Past months do not change, so
+# the answer is kept for an hour; the pull itself is the same query Month-Wise runs.
+_BEV_HIST_CACHE = {}          # 'start|end' -> (expires_at, months)
+_BEV_HIST_TTL = 3600          # seconds
+_BEV_HIST_MONTHS = 24         # how far back to look
+
+
+def get_beverages_month_history(before_date, months=_BEV_HIST_MONTHS):
+    """[{ym, label, brand, boxes, value}] for the `months` full calendar months
+    BEFORE the month that holds `before_date` (oldest first). The month of
+    before_date itself is left out - it is the month being compared."""
+    d = _bev_date(before_date)
+    if not d:
+        return []
+    first_of_this = d.replace(day=1)
+    end = first_of_this - timedelta(days=1)                       # last day of the month before
+    y, m = first_of_this.year, first_of_this.month - months
+    while m < 1:
+        m += 12; y -= 1
+    start = first_of_this.replace(year=y, month=m)
+    key = f'{start.isoformat()}|{end.isoformat()}'
+    now = time.time()
+    hit = _BEV_HIST_CACHE.get(key)
+    if hit and hit[0] > now:
+        return hit[1]
+    agg = {}
+    for r in _fetch_raw_beverages(start.isoformat(), end.isoformat()) or []:
+        ym, mlabel = _bev_month_key(r, _bev_date(_bev_pick(r, 'DocDate', 'DOCDATE', 'Doc_Date', 'doc_date')))
+        if not ym:
+            continue
+        brand = _normalize_name(_bev_pick(r, 'Brand', 'BRAND', 'U_Brand', 'U_BRAND', 'brand')) or '—'
+        cell = agg.setdefault((ym, brand), {'label': mlabel, 'boxes': 0.0, 'value': 0.0})
+        cell['boxes'] += _bev_num(_bev_pick(r, 'Boxes_Sold', 'BOXES_SOLD', 'Box', 'BOX', 'Boxes', 'box'))
+        cell['value'] += _bev_num(_bev_pick(r, 'Sales_Value', 'SALES_VALUE', 'LineTotal', 'LINETOTAL'))
+    out = [{'ym': k[0], 'brand': k[1], 'label': v['label'],
+            'boxes': round(v['boxes'], 2), 'value': round(v['value'], 2)}
+           for k, v in agg.items()]
+    out.sort(key=lambda x: (x['ym'], x['brand']))
+    if out:
+        _BEV_HIST_CACHE[key] = (now + _BEV_HIST_TTL, out)
+        for k in [k for k, v in _BEV_HIST_CACHE.items() if v[0] <= now]:
+            _BEV_HIST_CACHE.pop(k, None)
+    return out
+
+
 def get_beverages_rows_cached(start_date, end_date, want_prev=False):
     # want_prev is in the key: a payload fetched without the previous-month totals
     # must not be handed to a caller that asked for them.

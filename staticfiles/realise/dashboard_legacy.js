@@ -217,6 +217,9 @@ var bevRows=[], bevFetched=false, bevLoading=false, bevExpanded={}, bevTree=[];
 var bevDocState={}, bevNodeFilters={}, bevRangeStart='', bevRangeEnd='';
 var bevTodayBoxes=0, bevYestBoxes=0;
 var bevBrand='', bevTodayItems=[], bevYestItems=[], bevTodayDate='', bevYestDate='';
+// Box totals of earlier months (24 back), for the "closest month" line on the Last
+// Month card. Loaded after the main data; bevHistBefore remembers which month it is for.
+var bevHistMonths=[], bevHistBefore='', bevLastTotalBoxes=0;
 // The same day span one calendar month back (01-11 Sep -> 01-11 Aug), shown in the
 // 'Last Month' card so the selected range has something to be compared against.
 var bevPrevBoxes=0, bevPrevItems=[], bevPrevStart='', bevPrevEnd='';
@@ -344,6 +347,7 @@ async function loadBeverages(opts){
     bevPopulateMonths();
     bevCache[bevMode]=bevSnapshot();   // remember this mode's freshly-fetched data
     renderBeverages();
+    if(bevMode==='range')bevLoadHistory(sd);   // fills the "closest month" line when it lands
     arMarkUpdated();        // stamp the freshness indicator (manual or silent auto-refresh)
     showToast((silent?'Auto-refreshed · ':'')+bevRows.length+(silent?' rows':' beverage rows loaded'), silent?'info':'ok');
   }catch(e){ if(!silent){ showToast('Error: '+e.message,'err'); document.getElementById('bevBody').innerHTML='<tr><td colspan="6" style="padding:30px;text-align:center;color:#b91c1c">Error: '+esc(e.message)+'</td></tr>'; } }
@@ -609,6 +613,36 @@ function bevActiveRows(){
   return bevRows.filter(function(r){return (!bevBrand||r.brand===bevBrand)&&(!bevMonth||r.ym===bevMonth);});
 }
 // Box total of a day's item list, honouring the brand filter.
+/* ── Closest month ─────────────────────────────────────────────────────────────
+   Users compare the range's Total Boxes with earlier months by eye. This does it for
+   them: pull box totals for the 24 months before the range's month (one small call,
+   answered from a one-hour cache on the server), pick the month whose total is the
+   same or nearest, and name it - with its figure - on the Last Month card. Honours
+   the Brand filter like every other figure on the card. */
+function bevLoadHistory(sd){
+  var before=String(sd||'').slice(0,7);
+  if(!before)return;
+  if(before===bevHistBefore&&bevHistMonths.length){bevRenderNearMonth();return;}
+  fetch(API+'/api/beverages-month-history/?before='+encodeURIComponent(sd),{headers:{'X-CSRFToken':getCSRF()}})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(res){ bevHistMonths=(res&&res.months)||[]; bevHistBefore=before; bevRenderNearMonth(); })
+    .catch(function(){ bevHistMonths=[]; bevHistBefore=before; bevRenderNearMonth(); });
+}
+function bevRenderNearMonth(){
+  var el=document.getElementById('bevNearPrev'); if(!el)return;
+  if(!bevFetched||bevMode!=='range'||!bevHistMonths.length){el.innerHTML='';el.title='';return;}
+  var byYm={}, i, h;
+  for(i=0;i<bevHistMonths.length;i++){ h=bevHistMonths[i]; if(bevBrand&&h.brand!==bevBrand)continue;
+    var c=byYm[h.ym]||(byYm[h.ym]={label:h.label,boxes:0}); c.boxes+=h.boxes||0; }
+  var target=bevLastTotalBoxes, best=null;
+  for(var ym in byYm){ var m=byYm[ym]; if(m.boxes<=0)continue;
+    if(!best||Math.abs(m.boxes-target)<Math.abs(best.boxes-target))best=m; }
+  if(!best||!target){el.innerHTML='';el.title='';return;}
+  var diff=Math.round(best.boxes-target), sign=diff>0?'+':(diff<0?'\u2212':'');
+  el.innerHTML='Closest month <b>'+esc(best.label)+'</b> \u00b7 '+fN(Math.round(best.boxes))+' <span class="u">boxes</span>'
+    +' <span class="d">('+(diff?sign+fN(Math.abs(diff)):'same')+')</span>';
+  el.title='Of the last 24 months, '+best.label+' is the one whose boxes come nearest to this range\'s Total Boxes ('+fN(target)+'). Difference in brackets.';
+}
 function bevDayBoxes(items,brand){var t=0,a=items||[];for(var i=0;i<a.length;i++){if(!brand||a[i].brand===brand)t+=a[i].boxes||0;}return Math.round(t*100)/100;}
 /* Realise for one of the day / last-month item lists: invoiced value over boxes, the same
    formula the box table uses. Honours the Brand filter, so the rate always describes the
@@ -897,6 +931,7 @@ function renderBeverages(){
   document.getElementById('bevKpiToday').textContent=fN(bevDayBoxes(bevTodayItems,bevBrand));
   document.getElementById('bevKpiPrev').textContent=fN(bevDayBoxes(bevPrevItems,bevBrand));
   bevSetRealiseLine('bevRzPrev',bevPrevItems,bevBrand);
+  bevLastTotalBoxes=tb; bevRenderNearMonth();   // same brand-filtered total as the Total Boxes card
   var lt=document.getElementById('bevLblToday'); if(lt)lt.textContent="Today's Sales"+(bevTodayDate?(' · '+bevFmtDate(bevTodayDate)):'');
   var lp=document.getElementById('bevLblPrev');
   if(lp)lp.textContent='Last Month'+(bevPrevStart?(' · '+bevFmtRange(bevPrevStart,bevPrevEnd)):'');
@@ -910,6 +945,7 @@ function renderBeverages(){
     if(bxEl)bxEl.innerHTML='<div class="sl">Total Boxes</div><div class="sv">—</div>';
     document.getElementById('bevKpiToday').textContent='—'; document.getElementById('bevKpiPrev').textContent='—';
     var rzp=document.getElementById('bevRzPrev'); if(rzp)rzp.innerHTML='';
+    var nrp=document.getElementById('bevNearPrev'); if(nrp)nrp.innerHTML='';
     body.innerHTML='<tr><td colspan="6" style="padding:40px;text-align:center;color:#7b8794">'+(bevMode==='months'?'Enter a number of months and click Fetch to load beverages.':'Pick a date range and click Fetch to load beverages.')+'</td></tr>';return;}
   if(!bevOrder.length){body.innerHTML='<tr><td colspan="6" style="padding:40px;text-align:center;color:#7b8794">Select at least one drill dimension.</td></tr>';return;}
   if(!rows.length){body.innerHTML='<tr><td colspan="6" style="padding:40px;text-align:center;color:#7b8794">'+(bevBrand?('No rows for brand "'+esc(bevBrand)+'".'):'No beverage rows in this range.')+'</td></tr>';return;}

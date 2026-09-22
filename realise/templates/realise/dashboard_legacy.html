@@ -942,6 +942,10 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
      there is neutral. Empty when there is no rate, and then it takes up no room. */
   .bev-day-rz{color:var(--text2)}
   .bev-day-rz:empty{display:none}
+  /* "Closest month" line: the earlier month whose boxes come nearest to Total Boxes. */
+  .bev-near{font-size:clamp(10px,.8vw,12px);font-weight:700;white-space:normal;line-height:1.35;margin-top:5px}
+  .bev-near b{font-weight:800;color:var(--rz-ink)}
+  .bev-near .d{font-weight:700;color:var(--rz-muted)}
   /* Below this width the cards stop being readable however much they shrink, so the strip
      scrolls sideways instead — still one line, just swipeable. */
   @media (max-width:1100px){
@@ -1130,7 +1134,7 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
     </div>
     <div class="scard kpi-grad kpi-g-orange bev-kpi-click" onclick="openBevOih()" title="Order in Hand — open orders (drill by variety)"><div class="sl">OIH (Boxes)</div><div class="sv" id="bevKpiOih">&mdash;</div></div>
     <div class="scard kpi-grad kpi-g-green bev-kpi-click bev-day-card" onclick="openBevSold('today')" title="See what was sold today"><div class="sl" id="bevLblToday">Today's Sales (Boxes)</div><div class="sv" id="bevKpiToday">&mdash;</div></div>
-    <div class="scard kpi-grad kpi-g-purple bev-kpi-click bev-day-card" onclick="openBevSold('prev')" title="The same dates one month back — click to see what was sold"><div class="sl" id="bevLblPrev">Last Month (Boxes)</div><div class="sv" id="bevKpiPrev">&mdash;</div><div class="bev-bx-sub bev-day-rz" id="bevRzPrev"></div></div>
+    <div class="scard kpi-grad kpi-g-purple bev-kpi-click bev-day-card" onclick="openBevSold('prev')" title="The same dates one month back — click to see what was sold"><div class="sl" id="bevLblPrev">Last Month (Boxes)</div><div class="sv" id="bevKpiPrev">&mdash;</div><div class="bev-bx-sub bev-day-rz" id="bevRzPrev"></div><div class="bev-bx-sub bev-day-rz bev-near" id="bevNearPrev"></div></div>
     <div class="scard kpi-grad kpi-g-teal bev-kpi-click bev-top-card" onclick="openBevTop('customers')" title="See all customers (descending)" style="display:none"><div class="bev-top-title">Top Customers</div></div>
     <div class="scard kpi-grad kpi-g-red bev-kpi-click bev-top-card" onclick="openBevTop('months')" title="See all months (descending)" style="display:none"><div class="bev-top-title">Top Months</div></div>
   </div>
@@ -1599,5 +1603,5 @@ window.__CP = {
   the template around it is already new - which shows up as a KPI that never fills
   in. Bump this number whenever dashboard.js changes.
 {% endcomment %}
-<script src="{% static 'realise/dashboard_legacy.js' %}?v=30" defer></script>
+<script src="{% static 'realise/dashboard_legacy.js' %}?v=31" defer></script>
 {% endblock %}
