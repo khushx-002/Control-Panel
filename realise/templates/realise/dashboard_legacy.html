@@ -347,12 +347,21 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
      --k-ink   the dark tint the big figure is written in
      --k-tint  the soft fill behind the icon, the foot and the sparkline      */
 .sc2-kpi{position:relative;display:flex;flex-direction:column;padding:0;overflow:hidden;
-  background:var(--rz-card);border:1px solid var(--rz-card-brd);border-radius:16px;
+  background:var(--rz-card);border-radius:16px;
+  /* A light hairline the whole way round, so no side of the card is left open. Tinted
+     from the card's own accent, pale enough not to compete with the marker below. */
+  border:1px solid color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 25%, #fff);
   box-shadow:var(--rz-shadow);min-width:0}
-.sc2-kpi::before{content:"";position:absolute;top:0;left:0;width:52%;height:4px;
-  background:var(--k-acc,var(--rz-acc-indigo));border-radius:16px 0 0 0}
-.sc2-kpi::after{content:"";position:absolute;top:0;bottom:0;left:0;width:4px;
-  background:var(--k-acc,var(--rz-acc-indigo))}
+/* The colour marker: ONE rounded box drawing only its top and left borders, so the turn
+   at the corner is a real 16px arc that follows the card exactly. It used to be two
+   separate blocks - a 4px-tall bar and a 4px-wide stripe - which met in a hard square
+   notch, and no radius could fix that: a 16px radius on a 4px-tall box gets clamped to
+   ~2px by the browser, so the curve had nowhere to happen. Width 52% keeps the top bar
+   its original length. */
+.sc2-kpi::after{content:"";position:absolute;top:0;bottom:0;left:0;width:52%;
+  pointer-events:none;border-radius:16px 0 0 16px;
+  border:0 solid var(--k-acc,var(--rz-acc-indigo));
+  border-top-width:4px;border-left-width:4px}
 .sc2-kpi-main{flex:1;padding:14px 16px 10px}
 .sc2-kpi-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
 .sc2-kpi-ic{width:28px;height:28px;flex-shrink:0;border-radius:9px;display:flex;align-items:center;
@@ -387,8 +396,10 @@ td.ecell input.locked{background:var(--surface2);color:var(--text3);cursor:not-a
 .k-done  {--k-acc:var(--rz-acc-green); --k-edge:#16a34a;--k-ink:#14532d;--k-tint:#ecfdf5}
 .k-oih   {--k-acc:var(--rz-acc-amber); --k-edge:#d97706;--k-ink:#7c2d12;--k-tint:#fff7ed}
 .k-bal   {--k-acc:var(--rz-acc-teal);  --k-edge:#0d9488;--k-ink:#134e4a;--k-tint:#f0fdfa}
-.sc2-kpi.sc2-kpi-click{cursor:pointer;transition:box-shadow .15s,transform .15s,border-color .15s}
-.sc2-kpi.sc2-kpi-click:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);border-color:#9bc0f5}
+.sc2-kpi{transition:box-shadow .15s,transform .15s,border-color .15s}
+.sc2-kpi:hover{box-shadow:0 10px 26px rgba(37,99,235,.18);transform:translateY(-1px);
+  border-color:color-mix(in srgb, var(--k-acc,var(--rz-acc-indigo)) 50%, #fff)}
+.sc2-kpi.sc2-kpi-click{cursor:pointer}
 .oih-kpi-summary{display:flex;gap:12px;margin:14px 0 8px}
 .oih-kpi-box{flex:1;background:#f1f5fb;border:1px solid #dbe3ec;border-radius:10px;padding:10px 14px}
 .oih-kpi-box span{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#64748b;margin-bottom:4px}
