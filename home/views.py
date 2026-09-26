@@ -22,18 +22,30 @@ logger = logging.getLogger(__name__)
 # 403 that carries no navigation at all - which would strand them at the front door. So each
 # user is handed the first page they are actually allowed to see, in sidebar order.
 LANDING_ROUTES = [
-    ('can_realise',              'realise:dashboard'),         # Sales - the main page
+    # Sales first - almost everyone has it.
+    ('can_realise',              'realise:dashboard'),
     ('can_inventory',            'inventory:dashboard'),
+    # Then every other page in sidebar order. This list must cover EVERY page flag: a user
+    # whose only access is, say, Claims used to fall past the end of a shorter list and be
+    # told "your account has no pages enabled" - while a page they were allowed to open sat
+    # right there in their sidebar. Add a row here whenever a new page is added.
     ('can_compare_sales',        'realise:compare_sales'),
+    ('can_sales_cn',             'realise:sales_cn'),
+    ('can_hidden_sales',         'realise:hidden_sales'),
+    ('can_sales_flow',           'realise:sales_flow'),
     ('can_dispatch_details',     'realise:dispatch_details'),
     ('can_realise_calculator',   'realise:realise_calculator'),
     ('can_customer_aging',       'realise:customer_aging'),
     ('can_required_credit_limit','realise:required_credit_limit'),
     ('can_open_payments',        'realise:open_payments'),
-    ('can_oih_vs_stock',         'realise:oih_vs_stock'),
-    ('can_stock_available',      'inventory:stock_available'),
+    ('can_claims',               'realise:claims'),
     ('can_reconciliation',       'inventory:reconciliation'),
+    ('can_stock_available',      'inventory:stock_available'),
+    ('can_non_inventory',        'inventory:non_inventory'),
+    ('can_oih_vs_stock',         'realise:oih_vs_stock'),
     ('can_production',           'inventory:production'),
+    ('can_daily_production',     'inventory:daily_production'),
+    ('can_customer_master',      'realise:customer_master'),
     ('can_expenses',             'dashboard:expenses'),
     ('can_salaries',             'dashboard:salaries'),
 ]
